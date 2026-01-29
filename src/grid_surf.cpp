@@ -1794,6 +1794,7 @@ void Grid::combine_split_cell_particles(int icell, int relabel)
    assign all particles in a split icell to appropriate sub cells
    assumes particles are sorted, are NOT sorted by sub cell when done
    also change particle icell label
+   CRITICAL: particles assigned to zero-volume sub-cells are marked for deletion (icell = -1)
 ------------------------------------------------------------------------- */
 
 void Grid::assign_split_cell_particles(int icell)
@@ -1808,7 +1809,26 @@ void Grid::assign_split_cell_particles(int icell)
   while (ip >= 0) {
     if (dim == 3) jcell = update->split3d(icell,particles[ip].x);
     else jcell = update->split2d(icell,particles[ip].x);
-    particles[ip].icell = jcell;
+    
+    // CRITICAL: Check if assigned sub-cell has zero volume
+    // If so, mark particle for deletion instead of assigning to zero-volume cell
+    // CRITICAL: Check against maxlocal (array size) not nlocal
+    // cinfo array is allocated with size maxlocal, so jcell must be < maxlocal
+    if (jcell >= 0 && jcell < grid->maxlocal) {
+      if (jcell < nlocal && cinfo[jcell].volume == 0.0) {
+        particles[ip].icell = -1;  // Mark for deletion
+      } else if (jcell >= nlocal) {
+        // jcell is within array bounds but exceeds nlocal
+        // This can happen if grid was rebalanced - mark for deletion
+        particles[ip].icell = -1;
+      } else {
+        particles[ip].icell = jcell;
+      }
+    } else {
+      // Invalid cell index (out of array bounds), mark for deletion
+      particles[ip].icell = -1;
+    }
+    
     ip = next[ip];
   }
 

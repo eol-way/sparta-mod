@@ -1,0 +1,27 @@
+## Valgrind調査の結果まとめ
+
+### 問題の特定
+- `cinfo`配列のサイズ: 983,040バイト（15,360要素、ChildInfoは64バイト）
+- エラー: `Address 0x9285524 is 4 bytes after a block of size 983,040`
+- これは`cinfo[15360]`へのアクセスを意味し、配列の範囲外です
+
+### 根本原因
+- `particles[i].icell`が`maxlocal`（配列のサイズ）を超えている
+- `id_find_child()`がゴーストセルのインデックス（`nlocal`以上）を返す可能性
+- `cinfo`配列は所有セル用（`nlocal`）なので、ゴーストセルは除外する必要がある
+
+### 実施した修正
+1. `particle.cpp`の`sort()`で`maxlocal`を使用して`icell`の範囲チェック
+2. `fix_move_surf.cpp`の複数箇所で`nlocal`のチェックを`maxlocal`に変更
+3. `grid_surf.cpp`の`assign_split_cell_particles()`で`maxlocal`チェックを追加
+4. `push_out_particles()`で`id_find_child()`の戻り値を`nlocal`でチェック
+
+### 現在の状況
+- 修正を追加しても同じアドレスでクラッシュ
+- `id_find_child()`が返す値が`maxlocal`を超えている可能性
+- または、`hash`テーブルに古い値が残っている可能性
+
+### 推奨される次のステップ
+1. `id_find_child()`が返す値の範囲を確認
+2. `hash`テーブルが正しく更新されているか確認
+3. `grid->setup_owned()`や`grid->acquire_ghosts()`が呼ばれた後、`hash`テーブルが再構築されているか確認

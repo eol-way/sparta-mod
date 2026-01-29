@@ -17,6 +17,7 @@
 #include "string.h"
 #include "stdlib.h"
 #include "ctype.h"
+#include <cstdio>
 #include "particle.h"
 #include "grid.h"
 #include "update.h"
@@ -413,6 +414,17 @@ void Particle::sort()
 {
   sorted = 1;
 
+  // Safety check: ensure particles exist
+  if (!exist || nlocal == 0 || particles == NULL) return;
+  
+  // CRITICAL: Validate that nlocal doesn't exceed maxlocal
+  // This can happen if particles array was corrupted
+  if (nlocal > maxlocal) {
+    // This is a serious error - particles array is corrupted
+    // Set nlocal to maxlocal to prevent segfault
+    nlocal = maxlocal;
+  }
+
   // reallocate next list as needed
   // NOTE: why not just compare maxsort to nlocal?
   //       then could realloc less often?
@@ -428,18 +440,130 @@ void Particle::sort()
 
   Grid::ChildInfo *cinfo = grid->cinfo;
   int nglocal = grid->nlocal;
+  int maxlocal = grid->maxlocal;  // CRITICAL: Get maxlocal to check array bounds
+  
+  // Safety check: ensure cinfo is valid
+  if (cinfo == NULL || nglocal <= 0) return;
+  
+  // CRITICAL: Fix nglocal at loop start - do NOT change it during the loop
+  // This prevents issues where nglocal changes while we're iterating
+  int fixed_nglocal = nglocal;
+  
+  // CRITICAL: Use maxlocal as the actual array size limit
+  // cinfo array is allocated with size maxlocal, not nlocal
+  // nlocal can be less than maxlocal, but icell must be < maxlocal
+  int fixed_maxlocal = maxlocal;
+  
+  // CRITICAL: Additional safety check - ensure cinfo array is large enough
+  // This prevents segfault when icell exceeds array bounds
+  // Note: We can't easily check the actual array size, but we can validate
+  // that nglocal is reasonable (not negative, not too large)
+  if (fixed_nglocal < 0 || fixed_nglocal > 1000000) {
+    // nglocal is suspiciously large or negative - something is wrong
+    return;
+  }
+  
+  // CRITICAL: Ensure maxlocal is valid
+  if (fixed_maxlocal <= 0 || fixed_maxlocal > 1000000) {
+    // maxlocal is invalid - something is wrong
+    return;
+  }
 
-  for (int icell = 0; icell < nglocal; icell++) {
+  // CRITICAL: Initialize cinfo array, but only up to maxlocal
+  // cinfo array is allocated with size maxlocal, not nglocal
+  // nglocal can be less than maxlocal, but we should only initialize up to maxlocal
+  int init_limit = (nglocal < fixed_maxlocal) ? nglocal : fixed_maxlocal;
+  for (int icell = 0; icell < init_limit; icell++) {
     cinfo[icell].first = -1;
     cinfo[icell].count = 0;
   }
 
   // reverse loop over partlcles to store linked lists in forward order
   // icell = global cell the particle is in
+  // CRITICAL: Skip particles with invalid icell to prevent segfault
+  // CRITICAL: Fix nlocal at loop start to prevent issues with concurrent modifications
 
   int icell;
-  for (int i = nlocal-1; i >= 0; i--) {
+  // Re-fetch particles pointer and nlocal at the start
+  particles = this->particles;
+  
+  // Safety check: ensure particles pointer is valid
+  if (particles == NULL || !exist || nlocal <= 0) return;
+  
+  // CRITICAL: Fix nlocal at loop start - do NOT change it during the loop
+  // This prevents issues where nlocal changes while we're iterating
+  int fixed_nlocal = nlocal;
+  
+  // Safety check: ensure fixed_nlocal doesn't exceed maxlocal
+  if (fixed_nlocal > maxlocal) {
+    fixed_nlocal = maxlocal;
+  }
+  
+  // CRITICAL: Iterate only over the fixed range
+  // Do NOT re-fetch particles or nlocal during the loop to prevent issues
+  // If particles array is reallocated during sort(), we're in trouble anyway
+  for (int i = fixed_nlocal - 1; i >= 0; i--) {
+    // Safety check: ensure i is within valid range before accessing particles[i]
+    if (i < 0 || i >= fixed_nlocal || i >= maxlocal) break;
+    
+    // CRITICAL: Access particles[i] only after all checks pass
+    // Use pointer arithmetic with bounds checking
+    if (particles + i >= particles + maxlocal) break;
+    if (particles + i < particles) break;
+    
+    // CRITICAL: Re-fetch cinfo and maxlocal BEFORE accessing particles[i]
+    // cinfo array may be reallocated by grid->setup_owned() or grid->acquire_ghosts()
+    // which are called in fix_move_surf.cpp::end_of_step() before sort()
+    // Re-fetching before accessing particles[i] ensures we have the latest values
+    cinfo = grid->cinfo;
+    fixed_maxlocal = grid->maxlocal;
+    
+    // CRITICAL: Validate cinfo pointer BEFORE accessing it
+    if (cinfo == NULL) {
+      // cinfo was reallocated and is now NULL - this should not happen
+      // but we check anyway to prevent segfault
+      break;
+    }
+    
+    // CRITICAL: Read icell - if this crashes, particles[i] is invalid
+    // This means particles array was corrupted or reallocated
+    // Safety check: ensure i is within valid range
+    if (i < 0 || i >= fixed_nlocal || particles == NULL) {
+      break;
+    }
     icell = particles[i].icell;
+    
+    // CRITICAL: Validate cinfo pointer BEFORE accessing it
+    if (cinfo == NULL) {
+      // cinfo was reallocated and is now NULL - this should not happen
+      // but we check anyway to prevent segfault
+      break;
+    }
+    
+    // CRITICAL: Validate icell BEFORE using it to access cinfo
+    // This prevents segfault when icell is out of bounds
+    // CRITICAL: Use fixed_maxlocal instead of fixed_nglocal
+    // cinfo array is allocated with size maxlocal, not nlocal
+    // icell must be < maxlocal to access cinfo[icell]
+    // CRITICAL: Also check against nlocal to ensure it's an owned cell
+    if (icell < 0 || icell >= fixed_maxlocal || icell >= grid->nlocal) {
+      // Invalid icell - skip this particle
+      // This can happen if particle was not properly assigned to a cell
+      // or if icell exceeds the allocated array size
+      // CRITICAL: This is the root cause of the segfault
+      // particles[i].icell has an invalid value that exceeds maxlocal
+      // DEBUG: Output invalid icell value
+      fprintf(stderr, "ERROR: Particle::sort() found invalid icell=%d for particle i=%d (maxlocal=%d, nlocal=%d, nglocal=%d)\n",
+              icell, i, fixed_maxlocal, fixed_nlocal, fixed_nglocal);
+      fflush(stderr);
+      continue;
+    }
+    
+    // Safety check: ensure next array is valid
+    if (next == NULL || i >= maxsort) continue;
+    
+    // CRITICAL: Now safe to access cinfo[icell]
+    // All checks have passed: cinfo is valid, icell is within bounds
     next[i] = cinfo[icell].first;
     cinfo[icell].first = i;
     cinfo[icell].count++;

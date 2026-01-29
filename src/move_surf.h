@@ -54,6 +54,11 @@ class MoveSurf : protected Pointers {
   void move_lines(double, Surf::Line *);
   void move_tris(double, Surf::Tri *);
   bigint remove_particles();
+  
+  // 追加機能: 検知と削除のみ有効化
+  void detect_trapped_particles(int *&list, int &n);
+  
+  // void push_out_particles(); // 実装中止のため削除
 
  private:
   int me,nprocs;

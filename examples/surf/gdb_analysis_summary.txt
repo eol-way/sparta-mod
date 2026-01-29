@@ -1,0 +1,27 @@
+## gdb調査結果のまとめ
+
+### クラッシュ位置
+- アドレス: `0x5555556944a6` (`Particle::sort()`内)
+- スタックトレース:
+  1. `SPARTA_NS::Particle::sort()`
+  2. `SPARTA_NS::FixMoveSurf::end_of_step()`
+  3. `SPARTA_NS::Modify::end_of_step()`
+  4. `SPARTA_NS::Update::run(int)`
+
+### レジスタ値（クラッシュ時）
+- `rdi = 0x217d = 8573` (icellの可能性)
+- `rdx = 0x217b = 8571`
+- `rax = 0x7ffff5913fd0` (cinfo配列のベースアドレス)
+- `rsi = 0x7ffff5914010` (cinfo配列の別のアドレス)
+
+### 分析
+- `rsi - rax = 0x40 = 64`バイト = `ChildInfo`構造体のサイズ
+- `cinfo[8573]`にアクセスしようとしている
+- Valgrindの報告: `cinfo`配列のサイズは983,040バイト = 15,360要素
+- `8573 < 15360`なので、理論的には範囲内
+- しかし、`cinfo`配列は`maxlocal`要素しか確保されていない
+- `maxlocal`が`8573`未満の可能性がある
+
+### 問題の原因
+`particles[i].icell`が`8573`という値を持っているが、`maxlocal`が`8573`未満である可能性が高い。
+`id_find_child()`が返す値が`maxlocal`を超えているか、`hash`テーブルに古い値が残っている可能性がある。

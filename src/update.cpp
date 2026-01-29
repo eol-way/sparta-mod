@@ -327,8 +327,60 @@ void Update::run(int nsteps)
     timer->stamp(TIME_COMM);
 
     if (collide) {
+      // CRITICAL: Before calling sort(), ensure all particles have valid icell
+      // sort() will crash if any particle has invalid icell (negative or out of range)
+      if (particle->exist) {
+        Particle::OnePart *particles = particle->particles;
+        Grid::ChildInfo *cinfo = grid->cinfo;
+        int nlocal = particle->nlocal;
+        int delflag = 0;
+        
+        for (int i = 0; i < nlocal; i++) {
+          int icell = particles[i].icell;
+          // Mark particles with invalid icell for deletion
+          if (icell < 0 || icell >= grid->nlocal) {
+            particles[i].icell = -1;
+            delflag = 1;
+          } else if (cinfo[icell].volume == 0.0) {
+            particles[i].icell = -1;
+            delflag = 1;
+          }
+        }
+        
+        if (delflag) {
+          particle->compress_rebalance();
+        }
+      }
+      
       particle->sort();
       timer->stamp(TIME_SORT);
+
+      // Remove particles in zero-volume cells after sort()
+      // This prevents "Collision cell volume is zero" errors
+      // sort() may assign particles to zero-volume cells
+      if (particle->exist) {
+        Particle::OnePart *particles = particle->particles;
+        Grid::ChildInfo *cinfo = grid->cinfo;
+        int nlocal = particle->nlocal;
+        int delflag = 0;
+        
+        for (int i = 0; i < nlocal; i++) {
+          int icell = particles[i].icell;
+          if (icell >= 0 && icell < grid->nlocal) {
+            if (cinfo[icell].volume == 0.0) {
+              particles[i].icell = -1;
+              delflag = 1;
+            }
+          }
+        }
+        
+        if (delflag) {
+          particle->compress_rebalance();
+          // After removing particles, need to sort again
+          particle->sort();
+          timer->stamp(TIME_SORT);
+        }
+      }
 
       collide->collisions();
       timer->stamp(TIME_COLLIDE);

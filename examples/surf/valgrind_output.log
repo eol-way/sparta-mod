@@ -1,0 +1,29 @@
+Valgrind調査を開始します...
+hwloc x86 backend cannot work under Valgrind, disabling.
+May be reenabled by dumping CPUIDs with hwloc-gather-cpuid
+and reloading them under Valgrind with HWLOC_CPUID_PATH.
+hwloc x86 backend cannot work under Valgrind, disabling.
+May be reenabled by dumping CPUIDs with hwloc-gather-cpuid
+and reloading them under Valgrind with HWLOC_CPUID_PATH.
+[FB1VHB4:17801] *** Process received signal ***
+[FB1VHB4:17801] Signal: Segmentation fault (11)
+[FB1VHB4:17801] Signal code: Address not mapped (1)
+[FB1VHB4:17801] Failing at address: 0x2d7cda8c
+[FB1VHB4:17801] [ 0] /lib/x86_64-linux-gnu/libc.so.6(+0x45330)[0x4d8d330]
+[FB1VHB4:17801] [ 1] ./spa_mpi(+0x12493f)[0x22c93f]
+[FB1VHB4:17801] [ 2] ./spa_mpi(+0x3f5a5)[0x1475a5]
+[FB1VHB4:17801] [ 3] ./spa_mpi(+0x1a712c)[0x2af12c]
+[FB1VHB4:17801] [ 4] ./spa_mpi(+0x19ecb6)[0x2a6cb6]
+[FB1VHB4:17801] [ 5] ./spa_mpi(+0x16b03e)[0x27303e]
+[FB1VHB4:17801] [ 6] ./spa_mpi(+0x1233d3)[0x22b3d3]
+[FB1VHB4:17801] [ 7] ./spa_mpi(+0x1239ee)[0x22b9ee]
+[FB1VHB4:17801] [ 8] ./spa_mpi(+0x1fd6c)[0x127d6c]
+[FB1VHB4:17801] [ 9] /lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x4d721ca]
+[FB1VHB4:17801] [10] /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x4d7228b]
+[FB1VHB4:17801] [11] ./spa_mpi(+0x1fdc5)[0x127dc5]
+[FB1VHB4:17801] *** End of error message ***
+./run_valgrind.sh: line 25: 17801 Segmentation fault      (core dumped) valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --error-limit=no --log-file=valgrind.log ./spa_mpi < in.surf.rotate
+
+Valgrind調査が完了しました。結果は valgrind.log に保存されています。
+主要なエラーを確認するには:
+grep -A 5 'Invalid read\|Invalid write\|Use of uninitialised' valgrind.log

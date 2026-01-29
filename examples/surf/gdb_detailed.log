@@ -1,0 +1,64 @@
+GNU gdb (Ubuntu 15.0.50.20240403-0ubuntu1) 15.0.50.20240403-git
+Copyright (C) 2024 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from ./spa_mpi...
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) [answered N; input not from terminal]
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+(No debugging symbols found in ./spa_mpi)
+(gdb) (gdb) Breakpoint 1 at 0x1403e0
+(gdb) Starting program: /home/yu0126016/SPARTA/GIT/sparta/examples/surf/spa_mpi < in.surf.rotate
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+warning: could not find '.gnu_debugaltlink' file for /lib/x86_64-linux-gnu/libcap.so.2
+[Detaching after fork from child process 21365]
+[New Thread 0x7ffff75ff6c0 (LWP 21368)]
+warning: could not find '.gnu_debugaltlink' file for /usr/lib/x86_64-linux-gnu/pmix2/lib/pmix/pmix_mca_pcompress_zlib.so
+[New Thread 0x7ffff69ff6c0 (LWP 21369)]
+warning: could not find '.gnu_debugaltlink' file for /usr/lib/x86_64-linux-gnu/hwloc/hwloc_opencl.so
+warning: could not find '.gnu_debugaltlink' file for /usr/lib/x86_64-linux-gnu/hwloc/hwloc_gl.so
+warning: could not find '.gnu_debugaltlink' file for /usr/lib/x86_64-linux-gnu/hwloc/hwloc_pci.so
+warning: could not find '.gnu_debugaltlink' file for /usr/lib/x86_64-linux-gnu/hwloc/hwloc_xml_libxml.so
+
+Thread 1 "spa_mpi" hit Breakpoint 1, 0x00005555556943e0 in SPARTA_NS::Particle::sort() ()
+(gdb) (gdb) (gdb) #0  0x00005555556943e0 in SPARTA_NS::Particle::sort() ()
+(gdb) No symbol table info available.
+(gdb) No symbol "i" in current context.
+(gdb) No symbol "icell" in current context.
+(gdb) No symbol "grid" in current context.
+(gdb) No symbol "grid" in current context.
+(gdb) No symbol "grid" in current context.
+(gdb) No symbol "fixed_maxlocal" in current context.
+(gdb) No symbol "fixed_nlocal" in current context.
+(gdb) No symbol "fixed_nglocal" in current context.
+(gdb) No symbol "particles" in current context.
+(gdb) No symbol "cinfo" in current context.
+(gdb) No symbol "cinfo" in current context.
+(gdb) #0  0x00005555556943e0 in SPARTA_NS::Particle::sort() ()
+#1  0x0000555555580390 in SPARTA_NS::BalanceGrid::command(int, char**, int) ()
+#2  0x00005555556775b4 in SPARTA_NS::Input::execute_command() ()
+#3  0x00005555556779ee in SPARTA_NS::Input::file() ()
+#4  0x0000555555573d6c in main ()
+(gdb) Continuing.
+
+Thread 1 "spa_mpi" hit Breakpoint 1, 0x00005555556943e0 in SPARTA_NS::Particle::sort() ()
+(gdb) A debugging session is active.
+
+	Inferior 1 [process 21362] will be killed.
+
+Quit anyway? (y or n) [answered Y; input not from terminal]

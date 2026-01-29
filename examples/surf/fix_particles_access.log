@@ -1,0 +1,18 @@
+[FB1VHB4:22783] *** Process received signal ***
+[FB1VHB4:22783] Signal: Segmentation fault (11)
+[FB1VHB4:22783] Signal code: Address not mapped (1)
+[FB1VHB4:22783] Failing at address: 0x7814f18fdfd4
+[FB1VHB4:22783] [ 0] /lib/x86_64-linux-gnu/libc.so.6(+0x45330)[0x7814f3645330]
+[FB1VHB4:22783] [ 1] ./spa_mpi(+0x1404a6)[0x60bb119264a6]
+[FB1VHB4:22783] [ 2] ./spa_mpi(+0xf0505)[0x60bb118d6505]
+[FB1VHB4:22783] [ 3] ./spa_mpi(+0x134830)[0x60bb1191a830]
+[FB1VHB4:22783] [ 4] ./spa_mpi(+0x19ed8b)[0x60bb11984d8b]
+[FB1VHB4:22783] [ 5] ./spa_mpi(+0x16b03e)[0x60bb1195103e]
+[FB1VHB4:22783] [ 6] ./spa_mpi(+0x1233d3)[0x60bb119093d3]
+[FB1VHB4:22783] [ 7] ./spa_mpi(+0x1239ee)[0x60bb119099ee]
+[FB1VHB4:22783] [ 8] ./spa_mpi(+0x1fd6c)[0x60bb11805d6c]
+[FB1VHB4:22783] [ 9] /lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x7814f362a1ca]
+[FB1VHB4:22783] [10] /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x7814f362a28b]
+[FB1VHB4:22783] [11] ./spa_mpi(+0x1fdc5)[0x60bb11805dc5]
+[FB1VHB4:22783] *** End of error message ***
+timeout: the monitored command dumped core

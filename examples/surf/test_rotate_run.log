@@ -1,0 +1,308 @@
+SPARTA (24 Sep 2025)
+Running on 1 MPI task(s)
+Created orthogonal box = (0 0 -0.5) to (10 10 0.5)
+Created 400 child grid cells
+  CPU time = 0.000826158 secs
+  create/ghost percent = 90.0393 9.96069
+Balance grid migrated 0 cells
+  CPU time = 0.000167106 secs
+  reassign/sort/migrate/ghost percent = 73.2828 0.640911 7.53893 18.5373
+Reading surface file ...
+  50 lines
+  4.4 5.6 xlo xhi
+  1.4071 8.5929 ylo yhi
+  0 0 zlo zhi
+  0.0753486 min line length
+  36 0 = cells overlapping surfs, overlap cells with unmarked corner pts
+  352 12 36 = cells outside/inside/overlapping surfs
+  36 = surf cells with 1,2,etc splits
+  93.232005387525 93.232005387525 = cell-wise and global flow volume
+  CPU time = 0.000419814 secs
+  read/check/sort/surf2grid/ghost/inout/particle percent = 9.39178 18.9882 1.25508 62.0932 8.27176 6.08293 0.0257257
+  surf2grid time = 0.000260676 secs
+  map/comm1/comm2/comm3/comm4/split percent = 35.8852 9.36872 12.2857 3.30986 26.2034 9.55247
+Creating particles ...
+Created 97 particles
+  CPU time = 0.00169636 secs
+Memory usage per proc in Mbytes:
+  particles (ave,min,max) = 1.5625 1.5625 1.5625
+  grid      (ave,min,max) = 1.51379 1.51379 1.51379
+  surf      (ave,min,max) = 0.00514984 0.00514984 0.00514984
+  total     (ave,min,max) = 3.08144 3.08144 3.08144
+Step CPU Np Natt Ncoll Nscoll Nscheck 
+       0            0       97        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     100  0.052053814       97        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     200   0.10020324       97        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1763918088: pos = (3.031141e+00, 5.982184e+00, 0.000000e+00)
+Detected 0 trapped particles
+     300   0.14224451       64        0        0        0        9 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     400   0.18785948       58        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     500   0.22975871       56        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     600   0.27026034       56        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     700    0.3129044       56        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     800   0.35274277       56        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+     900   0.39196332       56        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1000   0.43214949       18        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1100    0.4709753        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1200   0.50788582        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1300   0.54975824        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1400    0.5912512        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1500   0.63517857        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1600   0.68070524        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1700   0.72253183        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1800   0.76307284        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    1900   0.80482243        0        0        0        0        0 
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+Detected 0 trapped particles
+    2000   0.84549869        0        0        0        0        0 
+Loop time of 0.845509 on 1 procs for 2000 steps with 0 particles
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Move    | 0.00094918 | 0.00094918 | 0.00094918 |   0.0 |  0.11
+Coll    | 0.001318   | 0.001318   | 0.001318   |   0.0 |  0.16
+Sort    | 0.00088646 | 0.00088646 | 0.00088646 |   0.0 |  0.10
+Comm    | 0.00070217 | 0.00070217 | 0.00070217 |   0.0 |  0.08
+Modify  | 0.034037   | 0.034037   | 0.034037   |   0.0 |  4.03
+Output  | 0.80661    | 0.80661    | 0.80661    |   0.0 | 95.40
+Other   |            | 0.001005   |            |       |  0.12
+
+Particle moves    = 67253 (67.3K)
+Cells touched     = 68566 (68.6K)
+Particle comms    = 0 (0K)
+Boundary collides = 1 (0.001K)
+Boundary exits    = 56 (0.056K)
+SurfColl checks   = 242 (0.242K)
+SurfColl occurs   = 0 (0K)
+Surf reactions    = 0 (0K)
+Collide attempts  = 0 (0K)
+Collide occurs    = 0 (0K)
+Gas reactions     = 0 (0K)
+Particles stuck   = 0
+Axisymm bad moves = 0
+
+Particle-moves/CPUsec/proc: 79541.4
+Particle-moves/step: 33.6265
+Cell-touches/particle/step: 1.01952
+Particle comm iterations/step: 1
+Particle fraction communicated: 0
+Particle fraction colliding with boundary: 1.48692e-05
+Particle fraction exiting boundary: 0.000832677
+Surface-checks/particle/step: 0.00359835
+Surface-collisions/particle/step: 0
+Surface-reactions/particle/step: 0
+Collision-attempts/particle/step: 0
+Collisions/particle/step: 0
+Gas-reactions/particle/step: 0
+
+Particles: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Cells:     400 ave 400 max 400 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+GhostCell: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+EmptyCell: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Surfs:     50 ave 50 max 50 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+GhostSurf: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0

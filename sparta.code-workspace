@@ -1,0 +1,30 @@
+{
+	"folders": [
+		{
+			"path": "/home/yu0126016/SPARTA/GIT/sparta"
+		}
+	],
+	"settings": {
+		// Microsoft C/C++拡張機能を無効化
+		"C_Cpp.intelliSenseEngine": "disabled",
+		
+		// clangd設定
+		"clangd.path": "clangd",
+		"clangd.arguments": [
+			"--background-index",
+			"--clang-tidy",
+			"--completion-style=detailed",
+			"--header-insertion=iwyu",
+			"--pch-storage=memory"
+		],
+		"clangd.compileFlags": [
+			"-I${workspaceFolder}/src"
+		],
+		"files.associations": {
+			"*.h": "cpp",
+			"*.cpp": "cpp"
+		}
+	}
+}
+
+

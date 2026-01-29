@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+
+        {
+            "name": "Debug SPARTA (Serial)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/src/spa_mpi",
+            "args": [
+                "-in",
+                "in.surf.rotate"  // ← ここに使いたい入力ファイル名を書く
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/examples/surf", // ← データがある場所を作業ディレクトリにする
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

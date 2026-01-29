@@ -1,0 +1,939 @@
+SPARTA (24 Sep 2025)
+Running on 1 MPI task(s)
+Created orthogonal box = (0 0 -0.5) to (10 10 0.5)
+Created 400 child grid cells
+  CPU time = 0.000785853 secs
+  create/ghost percent = 93.5256 6.47437
+Balance grid migrated 0 cells
+  CPU time = 0.000127039 secs
+  reassign/sort/migrate/ghost percent = 80.5493 0.587221 6.65308 12.2104
+Reading surface file ...
+  50 lines
+  4.4 5.6 xlo xhi
+  1.4071 8.5929 ylo yhi
+  0 0 zlo zhi
+  0.0753486 min line length
+  36 0 = cells overlapping surfs, overlap cells with unmarked corner pts
+  352 12 36 = cells outside/inside/overlapping surfs
+  36 = surf cells with 1,2,etc splits
+  93.232005387525 93.232005387525 = cell-wise and global flow volume
+  CPU time = 0.000534931 secs
+  read/check/sort/surf2grid/ghost/inout/particle percent = 28.5627 16.9272 1.14875 49.6141 3.74721 2.87906 0.0104686
+  surf2grid time = 0.000265401 secs
+  map/comm1/comm2/comm3/comm4/split percent = 35.7595 27.0817 8.03275 2.11077 19.1631 5.42764
+Creating particles ...
+Created 10625 particles
+  CPU time = 0.0100051 secs
+Memory usage per proc in Mbytes:
+  particles (ave,min,max) = 1.5625 1.5625 1.5625
+  grid      (ave,min,max) = 1.51379 1.51379 1.51379
+  surf      (ave,min,max) = 0.00514984 0.00514984 0.00514984
+  total     (ave,min,max) = 3.08144 3.08144 3.08144
+Step CPU Np Natt Ncoll Nscoll Nscheck 
+       0            0    10625        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     100  0.068880654    10625        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     200   0.14260706    10625        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 54 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1006123962: pos = (2.512992e+00, 7.444637e+00, 0.000000e+00)
+    Particle ID 775195951: pos = (2.509665e+00, 7.455638e+00, 0.000000e+00)
+    Particle ID 1857502313: pos = (2.545526e+00, 7.417238e+00, 0.000000e+00)
+    Particle ID 570139041: pos = (2.563295e+00, 7.445174e+00, 0.000000e+00)
+    Particle ID 1849756692: pos = (2.572866e+00, 7.443532e+00, 0.000000e+00)
+    Particle ID 1033422343: pos = (2.531674e+00, 7.396053e+00, 0.000000e+00)
+    Particle ID 98283435: pos = (2.518749e+00, 7.399772e+00, 0.000000e+00)
+    Particle ID 1648705407: pos = (2.545865e+00, 7.471865e+00, 0.000000e+00)
+    Particle ID 1041058378: pos = (2.511163e+00, 7.459792e+00, 0.000000e+00)
+    Particle ID 1934881382: pos = (2.523165e+00, 7.391136e+00, 0.000000e+00)
+Deleted 54 particles (detected: 54)
+Detected 448 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 867097752: pos = (2.706642e+00, 6.909407e+00, 0.000000e+00)
+    Particle ID 82565555: pos = (2.659468e+00, 6.961891e+00, 0.000000e+00)
+    Particle ID 895727704: pos = (2.602240e+00, 6.964937e+00, 0.000000e+00)
+    Particle ID 1977699163: pos = (2.684563e+00, 6.950969e+00, 0.000000e+00)
+    Particle ID 921526775: pos = (2.689513e+00, 6.934699e+00, 0.000000e+00)
+    Particle ID 180699315: pos = (2.625796e+00, 6.933393e+00, 0.000000e+00)
+    Particle ID 601268712: pos = (2.682845e+00, 6.875520e+00, 0.000000e+00)
+    Particle ID 2009166540: pos = (2.621158e+00, 6.956837e+00, 0.000000e+00)
+    Particle ID 1139009205: pos = (2.664325e+00, 6.865994e+00, 0.000000e+00)
+    Particle ID 176616981: pos = (2.687800e+00, 6.929975e+00, 0.000000e+00)
+Deleted 448 particles (detected: 448)
+Detected 363 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 575623141: pos = (2.817833e+00, 6.583180e+00, 0.000000e+00)
+    Particle ID 305383315: pos = (2.740994e+00, 6.590595e+00, 0.000000e+00)
+    Particle ID 1363984307: pos = (2.739256e+00, 6.636428e+00, 0.000000e+00)
+    Particle ID 449548711: pos = (2.759609e+00, 6.679403e+00, 0.000000e+00)
+    Particle ID 1967119315: pos = (2.603293e+00, 6.876832e+00, 0.000000e+00)
+    Particle ID 1945954167: pos = (2.531632e+00, 6.990773e+00, 0.000000e+00)
+    Particle ID 768695164: pos = (2.658752e+00, 6.717261e+00, 0.000000e+00)
+    Particle ID 110318807: pos = (2.774733e+00, 6.636604e+00, 0.000000e+00)
+    Particle ID 1855265808: pos = (2.634085e+00, 6.844208e+00, 0.000000e+00)
+    Particle ID 866656923: pos = (2.716852e+00, 6.687539e+00, 0.000000e+00)
+Deleted 363 particles (detected: 363)
+Detected 292 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 136823873: pos = (2.864671e+00, 6.397526e+00, 0.000000e+00)
+    Particle ID 1283161669: pos = (2.847854e+00, 6.344945e+00, 0.000000e+00)
+    Particle ID 836492717: pos = (2.809715e+00, 6.491353e+00, 0.000000e+00)
+    Particle ID 2022924750: pos = (2.768483e+00, 6.459169e+00, 0.000000e+00)
+    Particle ID 1102493161: pos = (2.820254e+00, 6.427226e+00, 0.000000e+00)
+    Particle ID 997270038: pos = (2.840754e+00, 6.451836e+00, 0.000000e+00)
+    Particle ID 266193914: pos = (2.794777e+00, 6.475199e+00, 0.000000e+00)
+    Particle ID 843320631: pos = (2.835042e+00, 6.353644e+00, 0.000000e+00)
+    Particle ID 611134111: pos = (2.830413e+00, 6.407276e+00, 0.000000e+00)
+    Particle ID 811460115: pos = (2.839356e+00, 6.388385e+00, 0.000000e+00)
+Deleted 292 particles (detected: 292)
+Detected 221 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 947647472: pos = (2.766799e+00, 6.347496e+00, 0.000000e+00)
+    Particle ID 1544124144: pos = (2.804489e+00, 6.278186e+00, 0.000000e+00)
+    Particle ID 1571240845: pos = (2.963357e+00, 6.140225e+00, 0.000000e+00)
+    Particle ID 1767974680: pos = (2.735483e+00, 6.417805e+00, 0.000000e+00)
+    Particle ID 1755841681: pos = (2.716911e+00, 6.412193e+00, 0.000000e+00)
+    Particle ID 17711635: pos = (2.876419e+00, 6.270179e+00, 0.000000e+00)
+    Particle ID 1693276065: pos = (2.899145e+00, 6.211473e+00, 0.000000e+00)
+    Particle ID 1655771432: pos = (2.765192e+00, 6.412384e+00, 0.000000e+00)
+    Particle ID 1721773876: pos = (2.847562e+00, 6.210215e+00, 0.000000e+00)
+    Particle ID 680816682: pos = (2.896971e+00, 6.257668e+00, 0.000000e+00)
+Deleted 221 particles (detected: 221)
+Detected 229 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 2038914843: pos = (2.996897e+00, 5.998542e+00, 0.000000e+00)
+    Particle ID 1312196073: pos = (2.980144e+00, 5.989359e+00, 0.000000e+00)
+    Particle ID 360477442: pos = (2.962796e+00, 5.998172e+00, 0.000000e+00)
+    Particle ID 1172133146: pos = (2.988891e+00, 5.970313e+00, 0.000000e+00)
+    Particle ID 1941427696: pos = (2.979789e+00, 5.987869e+00, 0.000000e+00)
+    Particle ID 1448756901: pos = (2.963761e+00, 5.984930e+00, 0.000000e+00)
+    Particle ID 463672479: pos = (2.995868e+00, 5.983905e+00, 0.000000e+00)
+    Particle ID 1113037303: pos = (2.992009e+00, 5.972307e+00, 0.000000e+00)
+    Particle ID 1851362333: pos = (2.978718e+00, 5.974932e+00, 0.000000e+00)
+    Particle ID 190203144: pos = (2.987423e+00, 5.972149e+00, 0.000000e+00)
+Deleted 238 particles (detected: 229)
+Detected 170 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 254200209: pos = (2.955015e+00, 5.930842e+00, 0.000000e+00)
+    Particle ID 2085687524: pos = (2.921121e+00, 5.937989e+00, 0.000000e+00)
+    Particle ID 1868907584: pos = (2.947788e+00, 5.944845e+00, 0.000000e+00)
+    Particle ID 1539234607: pos = (2.957685e+00, 5.934884e+00, 0.000000e+00)
+    Particle ID 1194745511: pos = (2.938043e+00, 5.985038e+00, 0.000000e+00)
+    Particle ID 2009144835: pos = (2.955821e+00, 5.949042e+00, 0.000000e+00)
+    Particle ID 75312700: pos = (2.918542e+00, 5.938252e+00, 0.000000e+00)
+    Particle ID 1741830475: pos = (2.911593e+00, 5.949804e+00, 0.000000e+00)
+    Particle ID 2056166891: pos = (2.948083e+00, 5.946318e+00, 0.000000e+00)
+    Particle ID 2060625874: pos = (2.928457e+00, 5.932652e+00, 0.000000e+00)
+Deleted 170 particles (detected: 170)
+     300   0.22121619     8839        0        0       10     1690 
+Detected 178 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 700101513: pos = (2.958298e+00, 5.820019e+00, 0.000000e+00)
+    Particle ID 473619353: pos = (2.983861e+00, 5.817049e+00, 0.000000e+00)
+    Particle ID 1644878583: pos = (2.970166e+00, 5.795001e+00, 0.000000e+00)
+    Particle ID 334539080: pos = (2.970867e+00, 5.807173e+00, 0.000000e+00)
+    Particle ID 1052314678: pos = (2.997412e+00, 5.792318e+00, 0.000000e+00)
+    Particle ID 1383253405: pos = (2.962785e+00, 5.888921e+00, 0.000000e+00)
+    Particle ID 1548606313: pos = (2.932685e+00, 5.847338e+00, 0.000000e+00)
+    Particle ID 455118648: pos = (2.933060e+00, 5.851544e+00, 0.000000e+00)
+    Particle ID 339503594: pos = (2.957603e+00, 5.884866e+00, 0.000000e+00)
+    Particle ID 62703181: pos = (2.958381e+00, 5.835859e+00, 0.000000e+00)
+Deleted 178 particles (detected: 178)
+Detected 146 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1845154600: pos = (3.344598e+00, 5.420510e+00, 0.000000e+00)
+    Particle ID 1930684074: pos = (3.323064e+00, 5.439373e+00, 0.000000e+00)
+    Particle ID 161704200: pos = (3.262727e+00, 5.482641e+00, 0.000000e+00)
+    Particle ID 425554419: pos = (3.271120e+00, 5.480987e+00, 0.000000e+00)
+    Particle ID 691180032: pos = (3.357471e+00, 5.454625e+00, 0.000000e+00)
+    Particle ID 1771986450: pos = (3.293412e+00, 5.459084e+00, 0.000000e+00)
+    Particle ID 714804972: pos = (3.316643e+00, 5.454666e+00, 0.000000e+00)
+    Particle ID 274802560: pos = (3.341057e+00, 5.476451e+00, 0.000000e+00)
+    Particle ID 1206083550: pos = (3.266541e+00, 5.485693e+00, 0.000000e+00)
+    Particle ID 1238783346: pos = (3.304294e+00, 5.464620e+00, 0.000000e+00)
+Deleted 146 particles (detected: 146)
+Detected 139 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 867832056: pos = (3.369967e+00, 5.368070e+00, 0.000000e+00)
+    Particle ID 1187945121: pos = (3.384621e+00, 5.332047e+00, 0.000000e+00)
+    Particle ID 815097344: pos = (3.489836e+00, 5.270117e+00, 0.000000e+00)
+    Particle ID 998393958: pos = (3.221501e+00, 5.494107e+00, 0.000000e+00)
+    Particle ID 814821736: pos = (3.296028e+00, 5.431551e+00, 0.000000e+00)
+    Particle ID 1440651827: pos = (3.279801e+00, 5.441372e+00, 0.000000e+00)
+    Particle ID 1821553065: pos = (3.348442e+00, 5.372825e+00, 0.000000e+00)
+    Particle ID 1508786282: pos = (3.471612e+00, 5.312397e+00, 0.000000e+00)
+    Particle ID 292359690: pos = (3.354528e+00, 5.358656e+00, 0.000000e+00)
+    Particle ID 1317251694: pos = (3.295547e+00, 5.402084e+00, 0.000000e+00)
+Deleted 139 particles (detected: 139)
+Detected 108 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 502873748: pos = (3.398951e+00, 5.263879e+00, 0.000000e+00)
+    Particle ID 1417214747: pos = (3.392532e+00, 5.319731e+00, 0.000000e+00)
+    Particle ID 788651714: pos = (3.338529e+00, 5.343793e+00, 0.000000e+00)
+    Particle ID 1571944326: pos = (3.489068e+00, 5.222478e+00, 0.000000e+00)
+    Particle ID 280161579: pos = (3.443078e+00, 5.278816e+00, 0.000000e+00)
+    Particle ID 1804518626: pos = (3.293204e+00, 5.354581e+00, 0.000000e+00)
+    Particle ID 203080592: pos = (3.342079e+00, 5.311792e+00, 0.000000e+00)
+    Particle ID 1738118464: pos = (3.380272e+00, 5.318735e+00, 0.000000e+00)
+    Particle ID 649540533: pos = (3.338587e+00, 5.304826e+00, 0.000000e+00)
+    Particle ID 887520253: pos = (3.423665e+00, 5.249832e+00, 0.000000e+00)
+Deleted 108 particles (detected: 108)
+Detected 91 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1953719603: pos = (3.486796e+00, 5.156641e+00, 0.000000e+00)
+    Particle ID 320809639: pos = (3.410842e+00, 5.219067e+00, 0.000000e+00)
+    Particle ID 1700799418: pos = (3.441876e+00, 5.185496e+00, 0.000000e+00)
+    Particle ID 2068181592: pos = (3.443196e+00, 5.181149e+00, 0.000000e+00)
+    Particle ID 674399194: pos = (3.350887e+00, 5.251237e+00, 0.000000e+00)
+    Particle ID 2086165309: pos = (3.331708e+00, 5.260656e+00, 0.000000e+00)
+    Particle ID 833077722: pos = (3.447041e+00, 5.199621e+00, 0.000000e+00)
+    Particle ID 585128928: pos = (3.445345e+00, 5.218172e+00, 0.000000e+00)
+    Particle ID 595649044: pos = (3.439661e+00, 5.217982e+00, 0.000000e+00)
+    Particle ID 1624741567: pos = (3.405680e+00, 5.222113e+00, 0.000000e+00)
+Deleted 91 particles (detected: 91)
+Detected 94 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1606631981: pos = (3.832460e+00, 4.939818e+00, 0.000000e+00)
+    Particle ID 1078658891: pos = (3.749754e+00, 4.985059e+00, 0.000000e+00)
+    Particle ID 1211693097: pos = (3.787587e+00, 4.942833e+00, 0.000000e+00)
+    Particle ID 954680661: pos = (3.774546e+00, 4.979893e+00, 0.000000e+00)
+    Particle ID 317920067: pos = (3.726226e+00, 4.980567e+00, 0.000000e+00)
+    Particle ID 874104805: pos = (3.702021e+00, 4.988861e+00, 0.000000e+00)
+    Particle ID 1211447219: pos = (3.744027e+00, 4.981932e+00, 0.000000e+00)
+    Particle ID 1586516119: pos = (3.768278e+00, 4.968664e+00, 0.000000e+00)
+    Particle ID 1124507151: pos = (3.759352e+00, 4.983067e+00, 0.000000e+00)
+    Particle ID 49093389: pos = (3.749714e+00, 4.995389e+00, 0.000000e+00)
+Deleted 94 particles (detected: 94)
+Detected 96 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1089814209: pos = (3.836416e+00, 4.902715e+00, 0.000000e+00)
+    Particle ID 1567842808: pos = (3.895695e+00, 4.869164e+00, 0.000000e+00)
+    Particle ID 571250441: pos = (3.747474e+00, 4.948032e+00, 0.000000e+00)
+    Particle ID 23400650: pos = (3.814078e+00, 4.892454e+00, 0.000000e+00)
+    Particle ID 1070100492: pos = (3.734544e+00, 4.928963e+00, 0.000000e+00)
+    Particle ID 1747872829: pos = (3.861338e+00, 4.883063e+00, 0.000000e+00)
+    Particle ID 160229108: pos = (3.740321e+00, 4.952408e+00, 0.000000e+00)
+    Particle ID 2070105292: pos = (3.757412e+00, 4.938160e+00, 0.000000e+00)
+    Particle ID 1524087123: pos = (3.799361e+00, 4.928412e+00, 0.000000e+00)
+    Particle ID 2114836118: pos = (3.678698e+00, 4.980467e+00, 0.000000e+00)
+Deleted 96 particles (detected: 96)
+Detected 74 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1219522574: pos = (3.773608e+00, 4.873337e+00, 0.000000e+00)
+    Particle ID 287741524: pos = (3.905287e+00, 4.837212e+00, 0.000000e+00)
+    Particle ID 1922672292: pos = (3.689298e+00, 4.932489e+00, 0.000000e+00)
+    Particle ID 735679826: pos = (3.810009e+00, 4.869251e+00, 0.000000e+00)
+    Particle ID 346816085: pos = (3.994423e+00, 4.793361e+00, 0.000000e+00)
+    Particle ID 593881433: pos = (3.754431e+00, 4.892798e+00, 0.000000e+00)
+    Particle ID 919001880: pos = (3.983765e+00, 4.787261e+00, 0.000000e+00)
+    Particle ID 631801197: pos = (3.803486e+00, 4.890445e+00, 0.000000e+00)
+    Particle ID 299017847: pos = (3.964130e+00, 4.792006e+00, 0.000000e+00)
+    Particle ID 674616850: pos = (3.766170e+00, 4.903026e+00, 0.000000e+00)
+Deleted 74 particles (detected: 74)
+Detected 57 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1641490268: pos = (3.923774e+00, 4.772708e+00, 0.000000e+00)
+    Particle ID 1367266365: pos = (3.915973e+00, 4.781513e+00, 0.000000e+00)
+    Particle ID 690184983: pos = (3.935808e+00, 4.776357e+00, 0.000000e+00)
+    Particle ID 1304745514: pos = (3.980516e+00, 4.751661e+00, 0.000000e+00)
+    Particle ID 1443897556: pos = (3.987255e+00, 4.766217e+00, 0.000000e+00)
+    Particle ID 1949604938: pos = (3.923242e+00, 4.780554e+00, 0.000000e+00)
+    Particle ID 1221905561: pos = (3.909578e+00, 4.780242e+00, 0.000000e+00)
+    Particle ID 1899906175: pos = (3.971918e+00, 4.765220e+00, 0.000000e+00)
+    Particle ID 1608947711: pos = (3.996707e+00, 4.755764e+00, 0.000000e+00)
+    Particle ID 1605017874: pos = (3.925863e+00, 4.783651e+00, 0.000000e+00)
+Deleted 57 particles (detected: 57)
+Detected 72 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1605938930: pos = (3.956346e+00, 4.739666e+00, 0.000000e+00)
+    Particle ID 1561882298: pos = (3.972023e+00, 4.728973e+00, 0.000000e+00)
+    Particle ID 2031593854: pos = (3.861617e+00, 4.791072e+00, 0.000000e+00)
+    Particle ID 1824286932: pos = (3.984791e+00, 4.730119e+00, 0.000000e+00)
+    Particle ID 1863123566: pos = (3.911296e+00, 4.775114e+00, 0.000000e+00)
+    Particle ID 1233016485: pos = (3.954718e+00, 4.751202e+00, 0.000000e+00)
+    Particle ID 1242106607: pos = (3.921182e+00, 4.747073e+00, 0.000000e+00)
+    Particle ID 828303870: pos = (3.908896e+00, 4.760236e+00, 0.000000e+00)
+    Particle ID 2145886662: pos = (3.995963e+00, 4.717573e+00, 0.000000e+00)
+    Particle ID 666046028: pos = (3.977347e+00, 4.721595e+00, 0.000000e+00)
+Deleted 72 particles (detected: 72)
+     400   0.29780649     7784        0        0        7     1082 
+Detected 29 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 706503002: pos = (3.965659e+00, 4.710756e+00, 0.000000e+00)
+    Particle ID 1114117045: pos = (3.968627e+00, 4.696098e+00, 0.000000e+00)
+    Particle ID 1478003719: pos = (4.017908e+00, 4.687739e+00, 0.000000e+00)
+    Particle ID 1438835078: pos = (4.106994e+00, 4.671795e+00, 0.000000e+00)
+    Particle ID 1861647186: pos = (4.100125e+00, 4.661084e+00, 0.000000e+00)
+    Particle ID 1025436697: pos = (4.017811e+00, 4.696049e+00, 0.000000e+00)
+    Particle ID 749065707: pos = (4.035935e+00, 4.679528e+00, 0.000000e+00)
+    Particle ID 1879841540: pos = (4.120278e+00, 4.668820e+00, 0.000000e+00)
+    Particle ID 1001403723: pos = (4.230213e+00, 4.618493e+00, 0.000000e+00)
+    Particle ID 1792732594: pos = (4.293362e+00, 4.593112e+00, 0.000000e+00)
+Deleted 29 particles (detected: 29)
+Detected 38 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 694851068: pos = (3.976160e+00, 4.669826e+00, 0.000000e+00)
+    Particle ID 1622847765: pos = (4.403398e+00, 4.542075e+00, 0.000000e+00)
+    Particle ID 699639658: pos = (4.278566e+00, 4.587231e+00, 0.000000e+00)
+    Particle ID 852951200: pos = (4.277779e+00, 4.584078e+00, 0.000000e+00)
+    Particle ID 1512705590: pos = (4.333522e+00, 4.564827e+00, 0.000000e+00)
+    Particle ID 1654060828: pos = (4.314678e+00, 4.570945e+00, 0.000000e+00)
+    Particle ID 363874252: pos = (4.278724e+00, 4.590936e+00, 0.000000e+00)
+    Particle ID 1458784189: pos = (4.322319e+00, 4.565358e+00, 0.000000e+00)
+    Particle ID 812396613: pos = (4.146083e+00, 4.624443e+00, 0.000000e+00)
+    Particle ID 1594113137: pos = (4.140805e+00, 4.625450e+00, 0.000000e+00)
+Deleted 38 particles (detected: 38)
+Detected 36 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1898794208: pos = (4.195685e+00, 4.588638e+00, 0.000000e+00)
+    Particle ID 1102486736: pos = (4.300022e+00, 4.563676e+00, 0.000000e+00)
+    Particle ID 1151707694: pos = (4.231698e+00, 4.587852e+00, 0.000000e+00)
+    Particle ID 208015271: pos = (4.464221e+00, 4.513537e+00, 0.000000e+00)
+    Particle ID 798567286: pos = (4.336222e+00, 4.543980e+00, 0.000000e+00)
+    Particle ID 1061803766: pos = (4.294346e+00, 4.560006e+00, 0.000000e+00)
+    Particle ID 1692137253: pos = (4.340699e+00, 4.540557e+00, 0.000000e+00)
+    Particle ID 146361741: pos = (4.296896e+00, 4.563756e+00, 0.000000e+00)
+    Particle ID 750413610: pos = (4.204339e+00, 4.586203e+00, 0.000000e+00)
+    Particle ID 226739651: pos = (4.244805e+00, 4.572786e+00, 0.000000e+00)
+Deleted 36 particles (detected: 36)
+Detected 33 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 700114314: pos = (4.467782e+00, 4.499605e+00, 0.000000e+00)
+    Particle ID 1619668340: pos = (4.491795e+00, 4.497671e+00, 0.000000e+00)
+    Particle ID 1941781170: pos = (4.469262e+00, 4.499003e+00, 0.000000e+00)
+    Particle ID 1577712581: pos = (4.538431e+00, 4.487928e+00, 0.000000e+00)
+    Particle ID 1821426658: pos = (4.536343e+00, 4.490073e+00, 0.000000e+00)
+    Particle ID 389232235: pos = (4.571371e+00, 4.483282e+00, 0.000000e+00)
+    Particle ID 743747133: pos = (4.531651e+00, 4.490675e+00, 0.000000e+00)
+    Particle ID 1960502464: pos = (4.571645e+00, 4.477006e+00, 0.000000e+00)
+    Particle ID 2130846227: pos = (4.567279e+00, 4.479560e+00, 0.000000e+00)
+    Particle ID 1536442300: pos = (4.610954e+00, 4.470659e+00, 0.000000e+00)
+Deleted 33 particles (detected: 33)
+Detected 36 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1112204123: pos = (4.477945e+00, 4.482813e+00, 0.000000e+00)
+    Particle ID 977756754: pos = (4.442501e+00, 4.498505e+00, 0.000000e+00)
+    Particle ID 722233174: pos = (4.471939e+00, 4.494146e+00, 0.000000e+00)
+    Particle ID 1876675846: pos = (4.473561e+00, 4.492941e+00, 0.000000e+00)
+    Particle ID 930797181: pos = (4.454700e+00, 4.496918e+00, 0.000000e+00)
+    Particle ID 1897029647: pos = (4.440976e+00, 4.495001e+00, 0.000000e+00)
+    Particle ID 50397453: pos = (4.694770e+00, 4.448784e+00, 0.000000e+00)
+    Particle ID 248048233: pos = (4.537244e+00, 4.470421e+00, 0.000000e+00)
+    Particle ID 1045514037: pos = (4.665995e+00, 4.452660e+00, 0.000000e+00)
+    Particle ID 1608442861: pos = (4.513731e+00, 4.478660e+00, 0.000000e+00)
+Deleted 36 particles (detected: 36)
+Detected 18 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1455715242: pos = (4.387409e+00, 4.490864e+00, 0.000000e+00)
+    Particle ID 1609055861: pos = (4.591068e+00, 4.450587e+00, 0.000000e+00)
+    Particle ID 1862693187: pos = (4.548369e+00, 4.464172e+00, 0.000000e+00)
+    Particle ID 1413639253: pos = (4.658511e+00, 4.443185e+00, 0.000000e+00)
+    Particle ID 1613966419: pos = (4.714716e+00, 4.438262e+00, 0.000000e+00)
+    Particle ID 1307194236: pos = (4.574291e+00, 4.457143e+00, 0.000000e+00)
+    Particle ID 1481095140: pos = (4.637685e+00, 4.449497e+00, 0.000000e+00)
+    Particle ID 1332058780: pos = (4.629925e+00, 4.451931e+00, 0.000000e+00)
+    Particle ID 488175723: pos = (4.500902e+00, 4.467725e+00, 0.000000e+00)
+    Particle ID 1412460495: pos = (4.543986e+00, 4.466352e+00, 0.000000e+00)
+Deleted 18 particles (detected: 18)
+Detected 13 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 463713962: pos = (4.693165e+00, 4.434050e+00, 0.000000e+00)
+    Particle ID 2030126652: pos = (4.714407e+00, 4.432335e+00, 0.000000e+00)
+    Particle ID 367488401: pos = (4.671515e+00, 4.437852e+00, 0.000000e+00)
+    Particle ID 848871747: pos = (4.813150e+00, 4.418908e+00, 0.000000e+00)
+    Particle ID 695185465: pos = (4.687474e+00, 4.430384e+00, 0.000000e+00)
+    Particle ID 1221342325: pos = (4.669660e+00, 4.433840e+00, 0.000000e+00)
+    Particle ID 1327802616: pos = (4.607244e+00, 4.442288e+00, 0.000000e+00)
+    Particle ID 1966082909: pos = (4.544973e+00, 4.456339e+00, 0.000000e+00)
+    Particle ID 379440433: pos = (4.738763e+00, 4.425802e+00, 0.000000e+00)
+    Particle ID 2008461950: pos = (4.625923e+00, 4.438161e+00, 0.000000e+00)
+Deleted 13 particles (detected: 13)
+Detected 6 trapped particles
+  First 6 trapped particles (proc 0):
+    Particle ID 252774566: pos = (4.866458e+00, 4.410047e+00, 0.000000e+00)
+    Particle ID 1846034695: pos = (4.828839e+00, 4.412340e+00, 0.000000e+00)
+    Particle ID 706483798: pos = (4.771096e+00, 4.419068e+00, 0.000000e+00)
+    Particle ID 629284460: pos = (4.793913e+00, 4.416205e+00, 0.000000e+00)
+    Particle ID 1021292584: pos = (4.902007e+00, 4.406824e+00, 0.000000e+00)
+    Particle ID 1793965709: pos = (4.806743e+00, 4.414387e+00, 0.000000e+00)
+Deleted 6 particles (detected: 6)
+Detected 3 trapped particles
+  First 3 trapped particles (proc 0):
+    Particle ID 1159295257: pos = (4.842597e+00, 4.407521e+00, 0.000000e+00)
+    Particle ID 1959411523: pos = (4.838619e+00, 4.408651e+00, 0.000000e+00)
+    Particle ID 1343115852: pos = (4.848333e+00, 4.406642e+00, 0.000000e+00)
+Deleted 3 particles (detected: 3)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 296609593: pos = (4.794057e+00, 4.406200e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+     500   0.38013393     7565        0        0        0     1321 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     600   0.55753549     7512        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     700   0.67780102     7512        0        0        0        2 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 19066137: pos = (7.582642e+00, 7.361154e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 73943256: pos = (7.324202e+00, 7.437228e+00, 0.000000e+00)
+    Particle ID 1288451685: pos = (7.351519e+00, 7.402781e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 19 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 993950052: pos = (7.406868e+00, 7.499203e+00, 0.000000e+00)
+    Particle ID 1809896146: pos = (7.332140e+00, 7.495018e+00, 0.000000e+00)
+    Particle ID 733850919: pos = (7.386164e+00, 7.497406e+00, 0.000000e+00)
+    Particle ID 1591937519: pos = (7.297846e+00, 7.516829e+00, 0.000000e+00)
+    Particle ID 1817437533: pos = (7.463982e+00, 7.546037e+00, 0.000000e+00)
+    Particle ID 1805617882: pos = (7.367006e+00, 7.542695e+00, 0.000000e+00)
+    Particle ID 383250544: pos = (7.468420e+00, 7.552121e+00, 0.000000e+00)
+    Particle ID 8403176: pos = (7.498180e+00, 7.523678e+00, 0.000000e+00)
+    Particle ID 841991377: pos = (7.413404e+00, 7.531464e+00, 0.000000e+00)
+    Particle ID 878194567: pos = (7.417435e+00, 7.553750e+00, 0.000000e+00)
+Deleted 19 particles (detected: 19)
+Detected 10 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 764801117: pos = (7.389481e+00, 7.574687e+00, 0.000000e+00)
+    Particle ID 1783944236: pos = (7.406491e+00, 7.627938e+00, 0.000000e+00)
+    Particle ID 1066642921: pos = (7.414881e+00, 7.579277e+00, 0.000000e+00)
+    Particle ID 1640356889: pos = (7.462158e+00, 7.604450e+00, 0.000000e+00)
+    Particle ID 1004713087: pos = (7.170825e+00, 7.603613e+00, 0.000000e+00)
+    Particle ID 1517960665: pos = (7.442150e+00, 7.601677e+00, 0.000000e+00)
+    Particle ID 124709540: pos = (7.418286e+00, 7.642024e+00, 0.000000e+00)
+    Particle ID 1528640756: pos = (7.378530e+00, 7.640346e+00, 0.000000e+00)
+    Particle ID 1888160262: pos = (7.310730e+00, 7.589771e+00, 0.000000e+00)
+    Particle ID 694483386: pos = (7.280883e+00, 7.586408e+00, 0.000000e+00)
+Deleted 10 particles (detected: 10)
+Detected 3 trapped particles
+  First 3 trapped particles (proc 0):
+    Particle ID 1537224291: pos = (7.308656e+00, 7.695235e+00, 0.000000e+00)
+    Particle ID 1946558063: pos = (7.373610e+00, 7.687653e+00, 0.000000e+00)
+    Particle ID 694097320: pos = (7.236865e+00, 7.673334e+00, 0.000000e+00)
+Deleted 3 particles (detected: 3)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     800   0.77653008     7477        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+     900   0.85640546     7477        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1468312583: pos = (5.059780e+00, 1.452097e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+    1000    0.9289108     3350        0        0        0       40 
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 512483370: pos = (5.311486e+00, 1.688832e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 677009453: pos = (5.410468e+00, 1.690837e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 2115827111: pos = (5.442223e+00, 1.699111e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 157975378: pos = (5.476473e+00, 1.533383e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1433487483: pos = (5.531669e+00, 1.481935e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 4 trapped particles
+  First 4 trapped particles (proc 0):
+    Particle ID 659617318: pos = (5.633803e+00, 1.482570e+00, 0.000000e+00)
+    Particle ID 1723546007: pos = (5.690233e+00, 1.519487e+00, 0.000000e+00)
+    Particle ID 1267357121: pos = (5.705639e+00, 1.568411e+00, 0.000000e+00)
+    Particle ID 1016687916: pos = (5.810097e+00, 1.958244e+00, 0.000000e+00)
+Deleted 4 particles (detected: 4)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 96801355: pos = (5.860409e+00, 1.657323e+00, 0.000000e+00)
+    Particle ID 2042479015: pos = (5.850643e+00, 1.626718e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 3 trapped particles
+  First 3 trapped particles (proc 0):
+    Particle ID 158992063: pos = (5.955218e+00, 1.741852e+00, 0.000000e+00)
+    Particle ID 602186830: pos = (5.929894e+00, 1.664162e+00, 0.000000e+00)
+    Particle ID 330441016: pos = (5.856233e+00, 1.537078e+00, 0.000000e+00)
+Deleted 3 particles (detected: 3)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 1316855429: pos = (6.074367e+00, 1.830352e+00, 0.000000e+00)
+    Particle ID 902221192: pos = (6.072490e+00, 1.758012e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 5 trapped particles
+  First 5 trapped particles (proc 0):
+    Particle ID 667569747: pos = (6.202556e+00, 1.725611e+00, 0.000000e+00)
+    Particle ID 366805527: pos = (6.195671e+00, 2.279247e+00, 0.000000e+00)
+    Particle ID 65517874: pos = (6.198660e+00, 2.032145e+00, 0.000000e+00)
+    Particle ID 235677491: pos = (6.222691e+00, 2.117807e+00, 0.000000e+00)
+    Particle ID 563524196: pos = (6.217428e+00, 2.180942e+00, 0.000000e+00)
+Deleted 5 particles (detected: 5)
+    1100   0.96742059      224        0        0        0       48 
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 1058215778: pos = (6.335783e+00, 1.971403e+00, 0.000000e+00)
+    Particle ID 1436314054: pos = (6.288392e+00, 2.091660e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1403653658: pos = (6.515308e+00, 1.992770e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 755566042: pos = (6.578976e+00, 2.295861e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1051195180: pos = (6.672855e+00, 2.174595e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 485102513: pos = (6.857439e+00, 2.082645e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 945721516: pos = (6.924827e+00, 2.443242e+00, 0.000000e+00)
+    Particle ID 1077150687: pos = (6.868656e+00, 2.685061e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 1332884247: pos = (7.073976e+00, 2.592074e+00, 0.000000e+00)
+    Particle ID 576928922: pos = (7.105448e+00, 2.535938e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+    1200    1.0055674      184        0        0        0       28 
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1834043797: pos = (7.142605e+00, 2.690610e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1729765178: pos = (7.608960e+00, 3.016941e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 2006015713: pos = (7.907813e+00, 3.041780e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+    1300    1.0461157      160        0        0        0       42 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1031443235: pos = (3.891029e+00, 4.936702e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 422561873: pos = (3.480601e+00, 5.129372e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 3 trapped particles
+  First 3 trapped particles (proc 0):
+    Particle ID 260754186: pos = (2.541281e+00, 5.362535e+00, 0.000000e+00)
+    Particle ID 345973679: pos = (3.099314e+00, 5.108264e+00, 0.000000e+00)
+    Particle ID 415901244: pos = (2.240561e+00, 5.503353e+00, 0.000000e+00)
+Deleted 3 particles (detected: 3)
+    1400    1.0870143      139        0        0        0       52 
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 1076761647: pos = (2.170853e+00, 5.439934e+00, 0.000000e+00)
+    Particle ID 279483919: pos = (2.507370e+00, 5.313251e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 809554161: pos = (1.985429e+00, 5.463727e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 3 trapped particles
+  First 3 trapped particles (proc 0):
+    Particle ID 1784176125: pos = (1.843510e+00, 5.470561e+00, 0.000000e+00)
+    Particle ID 287503613: pos = (1.787464e+00, 5.495961e+00, 0.000000e+00)
+    Particle ID 1643891060: pos = (1.759217e+00, 5.530464e+00, 0.000000e+00)
+Deleted 3 particles (detected: 3)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 436382238: pos = (1.704689e+00, 5.461428e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 279856282: pos = (1.553966e+00, 5.463212e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+    1500    1.1302717      104        0        0        0       36 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1695249158: pos = (1.622169e+00, 4.496463e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+    1600     1.181677       91        0        0        0       10 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 839490338: pos = (2.941023e+00, 3.412402e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1298986933: pos = (3.395081e+00, 3.544483e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+    1700    1.2265755       77        0        0        0        2 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 1876537645: pos = (2.896521e+00, 2.865243e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 1 trapped particles
+  First 1 trapped particles (proc 0):
+    Particle ID 727272693: pos = (2.892885e+00, 2.779465e+00, 0.000000e+00)
+Deleted 1 particles (detected: 1)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 342101119: pos = (3.003659e+00, 2.758577e+00, 0.000000e+00)
+    Particle ID 787769249: pos = (3.405639e+00, 2.979270e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 4 trapped particles
+  First 4 trapped particles (proc 0):
+    Particle ID 1450757226: pos = (3.139753e+00, 2.670883e+00, 0.000000e+00)
+    Particle ID 761803584: pos = (3.259917e+00, 2.787487e+00, 0.000000e+00)
+    Particle ID 514805328: pos = (3.517456e+00, 2.984724e+00, 0.000000e+00)
+    Particle ID 97860198: pos = (3.616667e+00, 3.023863e+00, 0.000000e+00)
+Deleted 4 particles (detected: 4)
+Detected 10 trapped particles
+  First 10 trapped particles (proc 0):
+    Particle ID 1349470324: pos = (2.690146e+00, 2.402448e+00, 0.000000e+00)
+    Particle ID 1195319273: pos = (3.173589e+00, 2.656486e+00, 0.000000e+00)
+    Particle ID 1995178804: pos = (3.110439e+00, 2.634305e+00, 0.000000e+00)
+    Particle ID 1633389971: pos = (3.215319e+00, 2.701571e+00, 0.000000e+00)
+    Particle ID 366142635: pos = (3.381531e+00, 2.750323e+00, 0.000000e+00)
+    Particle ID 1258836587: pos = (3.608587e+00, 2.972425e+00, 0.000000e+00)
+    Particle ID 1159854313: pos = (3.684102e+00, 2.953075e+00, 0.000000e+00)
+    Particle ID 450393798: pos = (3.639816e+00, 2.996357e+00, 0.000000e+00)
+    Particle ID 155409347: pos = (3.666531e+00, 3.001796e+00, 0.000000e+00)
+    Particle ID 465699683: pos = (3.967365e+00, 3.238514e+00, 0.000000e+00)
+Deleted 10 particles (detected: 10)
+Detected 6 trapped particles
+  First 6 trapped particles (proc 0):
+    Particle ID 93254397: pos = (3.787125e+00, 2.956150e+00, 0.000000e+00)
+    Particle ID 1849701057: pos = (3.765856e+00, 2.963322e+00, 0.000000e+00)
+    Particle ID 1875564940: pos = (3.749261e+00, 2.991527e+00, 0.000000e+00)
+    Particle ID 1388766904: pos = (3.619082e+00, 2.821724e+00, 0.000000e+00)
+    Particle ID 1552867789: pos = (3.659140e+00, 2.833292e+00, 0.000000e+00)
+    Particle ID 1672967884: pos = (3.887141e+00, 3.085540e+00, 0.000000e+00)
+Deleted 6 particles (detected: 6)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 1137694258: pos = (3.920355e+00, 2.992858e+00, 0.000000e+00)
+    Particle ID 1288300558: pos = (4.133616e+00, 3.210170e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+Detected 5 trapped particles
+  First 5 trapped particles (proc 0):
+    Particle ID 656179974: pos = (3.990446e+00, 2.960526e+00, 0.000000e+00)
+    Particle ID 1613984860: pos = (3.826349e+00, 2.871025e+00, 0.000000e+00)
+    Particle ID 118250474: pos = (3.952217e+00, 2.910912e+00, 0.000000e+00)
+    Particle ID 1825432334: pos = (4.080577e+00, 3.092204e+00, 0.000000e+00)
+    Particle ID 891126187: pos = (4.053206e+00, 3.034654e+00, 0.000000e+00)
+Deleted 5 particles (detected: 5)
+Detected 2 trapped particles
+  First 2 trapped particles (proc 0):
+    Particle ID 701547862: pos = (3.923722e+00, 2.836826e+00, 0.000000e+00)
+    Particle ID 217302403: pos = (4.021738e+00, 2.898652e+00, 0.000000e+00)
+Deleted 2 particles (detected: 2)
+    1800    1.2663598       29        0        0        0        4 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+    1900     1.315269       19        0        0        0        0 
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+Detected 0 trapped particles
+Deleted 0 particles (detected: 0)
+    2000     1.350669       10        0        0        0        0 
+Loop time of 1.35068 on 1 procs for 2000 steps with 10 particles
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Move    | 0.068233   | 0.068233   | 0.068233   |   0.0 |  5.05
+Coll    | 0.017105   | 0.017105   | 0.017105   |   0.0 |  1.27
+Sort    | 0.017784   | 0.017784   | 0.017784   |   0.0 |  1.32
+Comm    | 0.0017054  | 0.0017054  | 0.0017054  |   0.0 |  0.13
+Modify  | 0.083745   | 0.083745   | 0.083745   |   0.0 |  6.20
+Output  | 1.1597     | 1.1597     | 1.1597     |   0.0 | 85.86
+Other   |            | 0.002385   |            |       |  0.18
+
+Particle moves    = 8563371 (8.56M)
+Cells touched     = 8730997 (8.73M)
+Particle comms    = 0 (0K)
+Boundary collides = 483 (0.483K)
+Boundary exits    = 7442 (7.44K)
+SurfColl checks   = 527559 (0.528M)
+SurfColl occurs   = 1945 (1.95K)
+Surf reactions    = 0 (0K)
+Collide attempts  = 0 (0K)
+Collide occurs    = 0 (0K)
+Gas reactions     = 0 (0K)
+Particles stuck   = 0
+Axisymm bad moves = 0
+
+Particle-moves/CPUsec/proc: 6.34003e+06
+Particle-moves/step: 4281.69
+Cell-touches/particle/step: 1.01957
+Particle comm iterations/step: 1
+Particle fraction communicated: 0
+Particle fraction colliding with boundary: 5.6403e-05
+Particle fraction exiting boundary: 0.00086905
+Surface-checks/particle/step: 0.0616065
+Surface-collisions/particle/step: 0.00022713
+Surface-reactions/particle/step: 0
+Collision-attempts/particle/step: 0
+Collisions/particle/step: 0
+Gas-reactions/particle/step: 0
+
+Particles: 10 ave 10 max 10 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Cells:     400 ave 400 max 400 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+GhostCell: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+EmptyCell: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Surfs:     50 ave 50 max 50 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+GhostSurf: 0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
