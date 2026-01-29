@@ -59,7 +59,19 @@ SurfReactProbKokkos::SurfReactProbKokkos(SPARTA *sparta) :
 #endif
             )
 {
-  copy = 1;
+  random = NULL;
+  random_backup = NULL;
+
+  id = NULL;
+  style = NULL;
+  tally_single = NULL;
+  tally_total = NULL;
+  tally_single_all = NULL;
+  tally_total_all = NULL;
+
+  rlist = NULL;
+  reactions = NULL;
+  indices = NULL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -171,7 +183,7 @@ void SurfReactProbKokkos::pre_react()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
   particle_kk->sync(Device,PARTICLE_MASK);
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -179,7 +191,7 @@ void SurfReactProbKokkos::pre_react()
 void SurfReactProbKokkos::backup()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 
 #ifdef SPARTA_KOKKOS_EXACT
   if (!random_backup)

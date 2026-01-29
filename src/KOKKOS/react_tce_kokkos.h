@@ -31,10 +31,10 @@ namespace SPARTA_NS {
 class ReactTCEKokkos : public ReactBirdKokkos {
  public:
   ReactTCEKokkos(class SPARTA *, int, char **);
-  ReactTCEKokkos(class SPARTA* sparta) : ReactBirdKokkos(sparta) {copy = 1;}
+  ReactTCEKokkos(class SPARTA* sparta) : ReactBirdKokkos(sparta) {};
   void init();
   int attempt(Particle::OnePart *, Particle::OnePart *,
-              double, double, double, double &, int &) {return 0;}
+              double, double, double, double &, int &) { return 0; }
 
 /* ---------------------------------------------------------------------- */
 
@@ -189,7 +189,6 @@ int attempt_kk(Particle::OnePart *ip, Particle::OnePart *jp,
     }
 
     // Cover cases where coeff[1].neq.coeff[4]
-
     if (r->d_coeff[1]>((-1)*r->d_coeff[4])) e_excess = ecc - r->d_coeff[1];
     else e_excess = ecc + r->d_coeff[4];
     if (e_excess <= 0.0) continue;
@@ -293,7 +292,7 @@ int attempt_kk(Particle::OnePart *ip, Particle::OnePart *jp,
     //      nothing that is I-specific or J-specific
 
     if (react_prob > random_prob) {
-      Kokkos::atomic_inc(&d_tally_reactions[d_list[i]]);
+      Kokkos::atomic_increment(&d_tally_reactions[d_list[i]]);
       if (!computeChemRates) {
         ip->ispecies = r->d_products[0];
 
@@ -319,14 +318,12 @@ int attempt_kk(Particle::OnePart *ip, Particle::OnePart *jp,
 
         post_etotal = pre_etotal + r->d_coeff[4];
 
-        // return reaction from 1 to N
-
-        return d_list[i] + 1;
+        return 1;
+      } else {
+        return 0;
       }
     }
   }
-
-  // no reaction performed
 
   return 0;
 }

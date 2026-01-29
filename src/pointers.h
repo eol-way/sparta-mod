@@ -62,14 +62,13 @@ class Pointers {
     react(ptr->react),
     output(ptr->output),
     timer(ptr->timer),
-    python(ptr->python),
     memoryKK(ptr->memoryKK),
     world(ptr->world),
     infile(ptr->infile),
     screen(ptr->screen),
     logfile(ptr->logfile) {}
 
-  virtual ~Pointers() noexcept(false) {}
+  virtual ~Pointers() {}
 
  protected:
   SPARTA *sparta;
@@ -90,8 +89,7 @@ class Pointers {
   Output *&output;
   Timer *&timer;
 
-  class Python *&python;
-  class MemoryKokkos *&memoryKK;
+  MemoryKokkos *&memoryKK;
 
   MPI_Comm &world;
   FILE *&infile;

@@ -338,18 +338,16 @@ void UpdateKokkos::run(int nsteps)
 
   for (int i = 0; i < nsteps; i++) {
 
-    if (timer->check_timeout(i)) {
-      update->nsteps = i;
-      break;
-    }
-
     ntimestep++;
 
     if (collide_react) collide_react_reset();
-    if (tallyflag) tally_set(ntimestep);
-    if (dynamic) dynamic_update();
+    if (bounce_tally) bounce_set(ntimestep);
 
     timer->stamp();
+
+    // dynamic parameter updates
+
+    if (dynamic) dynamic_update();
 
     // start of step fixes
 
@@ -370,9 +368,9 @@ void UpdateKokkos::run(int nsteps)
       k_mlist_small = Kokkos::subview(k_mlist,std::make_pair(0,nmigrate));
       k_mlist_small.sync_host();
     }
-    auto mlist_small = k_mlist_small.view_host().data();
+    auto mlist_small = k_mlist_small.h_view.data();
 
-    ((CommKokkos*)comm)->migrate_particles(nmigrate,mlist_small,k_mlist_small.view_device());
+    ((CommKokkos*)comm)->migrate_particles(nmigrate,mlist_small,k_mlist_small.d_view);
     if (cellweightflag) particle->post_weight();
     timer->stamp(TIME_COMM);
 
@@ -485,12 +483,12 @@ template < int DIM, int SURF, int REACT, int OPT > void UpdateKokkos::move()
     if (!continue_loop_flag)
       niterate++;
 
-    d_particles = particle_kk->k_particles.view_device();
+    d_particles = particle_kk->k_particles.d_view;
 
     GridKokkos* grid_kk = ((GridKokkos*)grid);
-    d_cells = grid_kk->k_cells.view_device();
-    d_sinfo = grid_kk->k_sinfo.view_device();
-    d_pcells = grid_kk->k_pcells.view_device();
+    d_cells = grid_kk->k_cells.d_view;
+    d_sinfo = grid_kk->k_sinfo.d_view;
+    d_pcells = grid_kk->k_pcells.d_view;
 
     d_csurfs = grid_kk->d_csurfs;
     d_csplits = grid_kk->d_csplits;
@@ -499,8 +497,8 @@ template < int DIM, int SURF, int REACT, int OPT > void UpdateKokkos::move()
     if (surf->exist) {
       SurfKokkos* surf_kk = ((SurfKokkos*)surf);
       surf_kk->sync(Device,ALL_MASK);
-      d_lines = surf_kk->k_lines.view_device();
-      d_tris = surf_kk->k_tris.view_device();
+      d_lines = surf_kk->k_lines.d_view;
+      d_tris = surf_kk->k_tris.d_view;
     }
 
     if (surf->nsr) {
@@ -511,7 +509,7 @@ template < int DIM, int SURF, int REACT, int OPT > void UpdateKokkos::move()
       int nlocal_extra = particle->nlocal*extra_factor;
       if (d_particles.extent(0) < nlocal_extra) {
         particle->grow(nlocal_extra - particle->nlocal); // this!
-        d_particles = particle_kk->k_particles.view_device();
+        d_particles = particle_kk->k_particles.d_view;
       }
     }
 
@@ -654,7 +652,7 @@ template < int DIM, int SURF, int REACT, int OPT > void UpdateKokkos::move()
 
         if (d_particles.extent(0) < nlocal_new) {
           particle->grow(nlocal_new - particle->nlocal);
-          d_particles = particle_kk->k_particles.view_device();
+          d_particles = particle_kk->k_particles.d_view;
         }
       }
     }
@@ -758,9 +756,9 @@ template < int DIM, int SURF, int REACT, int OPT > void UpdateKokkos::move()
         k_mlist_small = Kokkos::subview(k_mlist,std::make_pair(0,nmigrate));
         k_mlist_small.sync_host();
       }
-      auto mlist_small = k_mlist_small.view_host().data();
+      auto mlist_small = k_mlist_small.h_view.data();
       timer->stamp(TIME_MOVE);
-      pstart = ((CommKokkos*)comm)->migrate_particles(nmigrate,mlist_small,k_mlist_small.view_device());
+      pstart = ((CommKokkos*)comm)->migrate_particles(nmigrate,mlist_small,k_mlist_small.d_view);
       timer->stamp(TIME_COMM);
       pstop = particle->nlocal;
       if (pstop-pstart > maxmigrate) {
@@ -956,12 +954,12 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
           } else {
             indx = Kokkos::atomic_fetch_add(&d_nmigrate(),1);
           }
-          k_mlist.view_device()[indx] = i;
+          k_mlist.d_view[indx] = i;
 
           particle_i.flag = PDONE;
 
           if (ATOMIC_REDUCTION == 1)
-            Kokkos::atomic_inc(&d_ncomm_one());
+            Kokkos::atomic_increment(&d_ncomm_one());
           else if (ATOMIC_REDUCTION == 0)
             d_ncomm_one()++;
           else
@@ -981,7 +979,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
   int nmask = d_cells[icell].nmask;
   stuck_iterate = 0;
   if (ATOMIC_REDUCTION == 1)
-    Kokkos::atomic_inc(&d_ntouch_one());
+    Kokkos::atomic_increment(&d_ntouch_one());
   else if (ATOMIC_REDUCTION == 0)
     d_ntouch_one()++;
   else
@@ -1349,7 +1347,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
           // must update particle's icell to current icell so that
           //   if jpart is created, it will be added to correct cell
           // if jpart, add new particle to this iteration via pstop++
-          // tally surface collision stats if requested using iorig
+          // tally surface statistics if requested using iorig
 
           ipart = &particle_i;
           ipart->icell = icell;
@@ -1410,7 +1408,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
           if (nsurf_tally)
             for (m = 0; m < nsurf_tally; m++)
               slist_active_copy[m].obj.
-                    surf_tally_kk<ATOMIC_REDUCTION>(dtremain,minsurf,icell,reaction,&iorig,ipart,jpart);
+                    surf_tally_kk<ATOMIC_REDUCTION>(minsurf,icell,reaction,&iorig,ipart,jpart);
 
           // stuck_iterate = consecutive iterations particle is immobile
 
@@ -1425,7 +1423,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
 
           exclude = minsurf;
           if (ATOMIC_REDUCTION == 1)
-            Kokkos::atomic_inc(&d_nscollide_one());
+            Kokkos::atomic_increment(&d_nscollide_one());
           else if (ATOMIC_REDUCTION == 0)
             d_nscollide_one()++;
           else
@@ -1472,7 +1470,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
           else {
             particle_i.flag = PDISCARD;
             if (ATOMIC_REDUCTION == 1)
-              Kokkos::atomic_inc(&d_nstuck());
+              Kokkos::atomic_increment(&d_nstuck());
             else if (ATOMIC_REDUCTION == 0)
               d_nstuck()++;
             else
@@ -1517,7 +1515,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
         if (x[1] < lo[1] || x[1] > hi[1]) {
           particle_i.flag = PDISCARD;
           if (ATOMIC_REDUCTION == 1)
-            Kokkos::atomic_inc(&d_naxibad());
+            Kokkos::atomic_increment(&d_naxibad());
           else if (ATOMIC_REDUCTION == 0)
             d_naxibad()++;
           else
@@ -1664,7 +1662,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
       if (nboundary_tally)
         for (int m = 0; m < nboundary_tally; m++)
           blist_active_copy[m].obj.
-            boundary_tally_kk<ATOMIC_REDUCTION>(dtremain,outface,bflag,reaction,&iorig,ipart,jpart,domain_kk_copy.obj.norm[outface]);
+            boundary_tally_kk<ATOMIC_REDUCTION>(outface,bflag,reaction,&iorig,ipart,jpart,domain_kk_copy.obj.norm[outface]);
 
       if (DIM == 1) {
         xnew[0] = x[0] + dtremain*v[0];
@@ -1675,7 +1673,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
       if (bflag == OUTFLOW) {
         particle_i.flag = PDISCARD;
         if (ATOMIC_REDUCTION == 1)
-          Kokkos::atomic_inc(&d_nexit_one());
+          Kokkos::atomic_increment(&d_nexit_one());
         else if (ATOMIC_REDUCTION == 0)
           d_nexit_one()++;
         else
@@ -1722,8 +1720,8 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
         }
 
         if (ATOMIC_REDUCTION == 1) {
-          Kokkos::atomic_inc(&d_nboundary_one());
-          Kokkos::atomic_dec(&d_ntouch_one());    // decrement here since will increment below
+          Kokkos::atomic_increment(&d_nboundary_one());
+          Kokkos::atomic_decrement(&d_ntouch_one());    // decrement here since will increment below
         } else if (ATOMIC_REDUCTION == 0) {
           d_nboundary_one()++;
           d_ntouch_one()--;    // decrement here since will increment below
@@ -1734,8 +1732,8 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
 
       } else {
         if (ATOMIC_REDUCTION == 1) {
-          Kokkos::atomic_inc(&d_nboundary_one());
-          Kokkos::atomic_dec(&d_ntouch_one());    // decrement here since will increment below
+          Kokkos::atomic_increment(&d_nboundary_one());
+          Kokkos::atomic_decrement(&d_ntouch_one());    // decrement here since will increment below
         } else if (ATOMIC_REDUCTION == 0) {
           d_nboundary_one()++;
           d_ntouch_one()--;    // decrement here since will increment below
@@ -1775,7 +1773,7 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
     neigh = d_cells[icell].neigh;
     nmask = d_cells[icell].nmask;
     if (ATOMIC_REDUCTION == 1)
-      Kokkos::atomic_inc(&d_ntouch_one());
+      Kokkos::atomic_increment(&d_ntouch_one());
     else if (ATOMIC_REDUCTION == 0)
       d_ntouch_one()++;
     else
@@ -1808,14 +1806,14 @@ void UpdateKokkos::operator()(TagUpdateMove<DIM,SURF,REACT,OPT,ATOMIC_REDUCTION>
     } else {
       index = Kokkos::atomic_fetch_add(&d_nmigrate(),1);
     }
-    k_mlist.view_device()[index] = i;
+    k_mlist.d_view[index] = i;
     if (particle_i.flag != PDISCARD) {
       if (d_cells[icell].proc == me && !d_error_flag()) {
         d_error_flag() = 1;
         return;
       }
       if (ATOMIC_REDUCTION == 1)
-        Kokkos::atomic_inc(&d_ncomm_one());
+        Kokkos::atomic_increment(&d_ncomm_one());
       else if (ATOMIC_REDUCTION == 0)
         d_ncomm_one()++;
       else
@@ -1937,9 +1935,9 @@ int UpdateKokkos::split2d(int icell, double *x) const
    clear accumulators in computes that will be invoked this step
 ------------------------------------------------------------------------- */
 
-void UpdateKokkos::tally_set(bigint ntimestep)
+void UpdateKokkos::bounce_set(bigint ntimestep)
 {
-  Update::tally_set(ntimestep);
+  Update::bounce_set(ntimestep);
 
   int i;
 
@@ -1961,16 +1959,11 @@ void UpdateKokkos::tally_set(bigint ntimestep)
     for (i = 0; i < nsurf_tally; i++) {
       if (strcmp(slist_active[i]->style,"isurf/grid") == 0)
         error->all(FLERR,"Kokkos doesn't yet support compute isurf/grid");
-      ComputeSurfKokkos* compute_surf_kk = dynamic_cast<ComputeSurfKokkos*>(slist_active[i]);
-      if (!compute_surf_kk)
-        error->all(FLERR,"Kokkos does not (yet) support compute surf/collision/tally or compute surf/reaction/tally");
+      ComputeSurfKokkos* compute_surf_kk = (ComputeSurfKokkos*)(slist_active[i]);
       compute_surf_kk->pre_surf_tally();
       slist_active_copy[i].copy(compute_surf_kk);
     }
   }
-
-  if (ngas_tally)
-    error->all(FLERR,"Kokkos does not (yet) support tallying gas/gas collisions or reactions");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1978,7 +1971,7 @@ void UpdateKokkos::tally_set(bigint ntimestep)
 void UpdateKokkos::backup()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
   d_particles_backup = decltype(d_particles)(Kokkos::view_alloc("update:particles_backup",Kokkos::WithoutInitializing),d_particles.extent(0));
 
   Kokkos::deep_copy(d_particles_backup,d_particles);
@@ -2006,8 +1999,8 @@ void UpdateKokkos::backup()
 void UpdateKokkos::restore()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
-  Kokkos::deep_copy(particle_kk->k_particles.view_device(),d_particles_backup);
-  d_particles = particle_kk->k_particles.view_device();
+  Kokkos::deep_copy(particle_kk->k_particles.d_view,d_particles_backup);
+  d_particles = particle_kk->k_particles.d_view;
 
   if (surf->nsc > 0) {
     int nspec,ndiff,npist;

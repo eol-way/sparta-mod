@@ -26,8 +26,8 @@ SurfCollideVanishKokkos::SurfCollideVanishKokkos(SPARTA *sparta, int narg, char 
   kokkosable = 1;
 
   k_nsingle = DAT::tdual_int_scalar("SurfCollide:nsingle");
-  d_nsingle = k_nsingle.view_device();
-  h_nsingle = k_nsingle.view_host();
+  d_nsingle = k_nsingle.d_view;
+  h_nsingle = k_nsingle.h_view;
 
   allowreact = 0;
 }
@@ -35,7 +35,11 @@ SurfCollideVanishKokkos::SurfCollideVanishKokkos(SPARTA *sparta, int narg, char 
 SurfCollideVanishKokkos::SurfCollideVanishKokkos(SPARTA *sparta) :
   SurfCollideVanish(sparta)
 {
-  copy = 1;
+  id = NULL;
+  style = NULL;
+
+  t_owned = NULL;
+  t_localghost = NULL;
 }
 
 /* ---------------------------------------------------------------------- */

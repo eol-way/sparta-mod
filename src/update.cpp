@@ -91,12 +91,12 @@ Update::Update(SPARTA *sparta) : Pointers(sparta)
   maxmigrate = 0;
   mlist = NULL;
 
-  nglist_compute = nslist_compute = nblist_compute = 0;
-  glist_compute = slist_compute = blist_compute = NULL;
-  glist_active = slist_active = blist_active = NULL;
+  nslist_compute = nblist_compute = 0;
+  slist_compute = blist_compute = NULL;
+  slist_active = blist_active = NULL;
 
-  ndlist_surfcollide  = 0;
-  dlist_surfcollide = NULL;
+  nulist_surfcollide  = 0;
+  ulist_surfcollide = NULL;
 
   ranmaster = new RanMars(sparta);
 
@@ -116,17 +116,11 @@ Update::~Update()
   delete [] unit_style;
   delete [] fieldID;
   memory->destroy(mlist);
-
-  delete [] glist_compute;
   delete [] slist_compute;
   delete [] blist_compute;
-
-  delete [] glist_active;
   delete [] slist_active;
   delete [] blist_active;
-
-  delete [] dlist_surfcollide;
-
+  delete [] ulist_surfcollide;
   delete ranmaster;
 }
 
@@ -263,8 +257,10 @@ void Update::setup()
   nstuck = naxibad = 0;
 
   collide_react = collide_react_setup();
-  tallyflag = tally_setup();
-  dynamic = dynamic_setup();
+  bounce_tally = bounce_setup();
+
+  dynamic = 0;
+  dynamic_setup();
 
   modify->setup();
   if (dynamic) dynamic_update();
@@ -302,10 +298,13 @@ void Update::run(int nsteps)
     ntimestep++;
 
     if (collide_react) collide_react_reset();
-    if (tallyflag) tally_set(ntimestep);
-    if (dynamic) dynamic_update();
+    if (bounce_tally) bounce_set(ntimestep);
 
     timer->stamp();
+
+    // dynamic parameter updates
+
+    if (dynamic) dynamic_update();
 
     // start of step fixes
 
@@ -327,60 +326,8 @@ void Update::run(int nsteps)
     timer->stamp(TIME_COMM);
 
     if (collide) {
-      // CRITICAL: Before calling sort(), ensure all particles have valid icell
-      // sort() will crash if any particle has invalid icell (negative or out of range)
-      if (particle->exist) {
-        Particle::OnePart *particles = particle->particles;
-        Grid::ChildInfo *cinfo = grid->cinfo;
-        int nlocal = particle->nlocal;
-        int delflag = 0;
-        
-        for (int i = 0; i < nlocal; i++) {
-          int icell = particles[i].icell;
-          // Mark particles with invalid icell for deletion
-          if (icell < 0 || icell >= grid->nlocal) {
-            particles[i].icell = -1;
-            delflag = 1;
-          } else if (cinfo[icell].volume == 0.0) {
-            particles[i].icell = -1;
-            delflag = 1;
-          }
-        }
-        
-        if (delflag) {
-          particle->compress_rebalance();
-        }
-      }
-      
       particle->sort();
       timer->stamp(TIME_SORT);
-
-      // Remove particles in zero-volume cells after sort()
-      // This prevents "Collision cell volume is zero" errors
-      // sort() may assign particles to zero-volume cells
-      if (particle->exist) {
-        Particle::OnePart *particles = particle->particles;
-        Grid::ChildInfo *cinfo = grid->cinfo;
-        int nlocal = particle->nlocal;
-        int delflag = 0;
-        
-        for (int i = 0; i < nlocal; i++) {
-          int icell = particles[i].icell;
-          if (icell >= 0 && icell < grid->nlocal) {
-            if (cinfo[icell].volume == 0.0) {
-              particles[i].icell = -1;
-              delflag = 1;
-            }
-          }
-        }
-        
-        if (delflag) {
-          particle->compress_rebalance();
-          // After removing particles, need to sort again
-          particle->sort();
-          timer->stamp(TIME_SORT);
-        }
-      }
 
       collide->collisions();
       timer->stamp(TIME_COLLIDE);
@@ -958,7 +905,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
               // must update particle's icell to current icell so that
               //   if jpart is created, it will be added to correct cell
               // if jpart, add new particle to this iteration via pstop++
-              // tally surface collision stats if requested using iorig
+              // tally surface statistics if requested using iorig
 
               ipart = &particles[i];
               ipart->icell = icell;
@@ -986,7 +933,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
 
               if (nsurf_tally)
                 for (m = 0; m < nsurf_tally; m++)
-                  slist_active[m]->surf_tally(dtremain,minsurf,icell,reaction,
+                  slist_active[m]->surf_tally(minsurf,icell,reaction,
                                               &iorig,ipart,jpart);
 
               // stuck_iterate = consecutive iterations particle is immobile
@@ -1185,7 +1132,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
           if (nboundary_tally)
             for (m = 0; m < nboundary_tally; m++)
               blist_active[m]->
-                boundary_tally(dtremain,outface,bflag,reaction,&iorig,ipart,jpart);
+                boundary_tally(outface,bflag,reaction,&iorig,ipart,jpart);
 
           if (DIM == 1) {
             xnew[0] = x[0] + dtremain*v[0];
@@ -1556,7 +1503,7 @@ void Update::collide_react_reset()
 /* ----------------------------------------------------------------------
    update cummulative counters for tallying surface collisions/reactions
    done at end of each timestep
-   done within individual SurfCollide and SurfReact instances
+   this is done within individual SurfCollide and SurfReact instances
 ------------------------------------------------------------------------- */
 
 void Update::collide_react_update()
@@ -1566,75 +1513,52 @@ void Update::collide_react_update()
 }
 
 /* ----------------------------------------------------------------------
-   setup lists of all computes that are potentially called when events occur
-     gas/gas collisions or reactions
-     gas/surf collisions or reactions
-     gas/boundary collisions or reactions
+   setup lists of all computes that tally surface and boundary bounce info
    return 1 if there are any, 0 if not
 ------------------------------------------------------------------------- */
 
-int Update::tally_setup()
+int Update::bounce_setup()
 {
-  delete [] glist_compute;
   delete [] slist_compute;
   delete [] blist_compute;
-
-  delete [] glist_active;
   delete [] slist_active;
   delete [] blist_active;
+  slist_compute = blist_compute = NULL;
 
-  glist_compute = slist_compute = blist_compute = NULL;
-
-  nglist_compute = nslist_compute = nblist_compute = 0;
+  nslist_compute = nblist_compute = 0;
   for (int i = 0; i < modify->ncompute; i++) {
-    if (modify->compute[i]->gas_tally_flag) nglist_compute++;
     if (modify->compute[i]->surf_tally_flag) nslist_compute++;
     if (modify->compute[i]->boundary_tally_flag) nblist_compute++;
   }
 
-  if (nglist_compute) glist_compute = new Compute*[nglist_compute];
   if (nslist_compute) slist_compute = new Compute*[nslist_compute];
   if (nblist_compute) blist_compute = new Compute*[nblist_compute];
-
-  if (nglist_compute) glist_active = new Compute*[nglist_compute];
   if (nslist_compute) slist_active = new Compute*[nslist_compute];
   if (nblist_compute) blist_active = new Compute*[nblist_compute];
 
-  nglist_compute = nslist_compute = nblist_compute = 0;
+  nslist_compute = nblist_compute = 0;
   for (int i = 0; i < modify->ncompute; i++) {
-    if (modify->compute[i]->gas_tally_flag)
-      glist_compute[nglist_compute++] = modify->compute[i];
     if (modify->compute[i]->surf_tally_flag)
       slist_compute[nslist_compute++] = modify->compute[i];
     if (modify->compute[i]->boundary_tally_flag)
       blist_compute[nblist_compute++] = modify->compute[i];
   }
 
-  if (nglist_compute || nslist_compute || nblist_compute) return 1;
-  ngas_tally = nsurf_tally = nboundary_tally = 0;
+  if (nslist_compute || nblist_compute) return 1;
+  nsurf_tally = nboundary_tally = 0;
   return 0;
 }
 
 /* ----------------------------------------------------------------------
-   set list computes that will called on current timestep when events occur
-   ngas_tally = # of gas computes to be called on this step
-   nsurf_tally = # of surface computes to be called on this step
-   nboundary_tally = # of boundary computes to be called on this step
-   also clear accumulators in computes which are invoked on this step
+   set bounce tally flags for current timestep
+   nsurf_tally = # of surface computes needing bounce info on this step
+   nboundary_tally = # of boundary computes needing bounce info on this step
+   clear accumulators in computes that will be invoked this step
 ------------------------------------------------------------------------- */
 
-void Update::tally_set(bigint ntimestep)
+void Update::bounce_set(bigint ntimestep)
 {
   int i;
-
-  ngas_tally = 0;
-  if (nglist_compute) {
-    for (i = 0; i < nglist_compute; i++)
-      if (glist_compute[i]->matchstep(ntimestep)) {
-        glist_active[ngas_tally++] = glist_compute[i];
-        glist_compute[i]->clear();
-      }
-  }
 
   nsurf_tally = 0;
   if (nslist_compute) {
@@ -1660,25 +1584,24 @@ void Update::tally_set(bigint ntimestep)
    currently only surf collision models
 ------------------------------------------------------------------------- */
 
-int Update::dynamic_setup()
+void Update::dynamic_setup()
 {
-  delete [] dlist_surfcollide;
-  dlist_surfcollide = NULL;
+  delete [] ulist_surfcollide;
+  ulist_surfcollide = NULL;
 
-  ndlist_surfcollide = 0;
+  nulist_surfcollide = 0;
   for (int i = 0; i < surf->nsc; i++)
-    if (surf->sc[i]->dynamicflag) ndlist_surfcollide++;
+    if (surf->sc[i]->dynamicflag) nulist_surfcollide++;
 
-  if (ndlist_surfcollide)
-    dlist_surfcollide = new SurfCollide*[ndlist_surfcollide];
+  if (nulist_surfcollide)
+    ulist_surfcollide = new SurfCollide*[nulist_surfcollide];
 
-  ndlist_surfcollide = 0;
+  nulist_surfcollide = 0;
   for (int i = 0; i < surf->nsc; i++)
     if (surf->sc[i]->dynamicflag)
-      dlist_surfcollide[ndlist_surfcollide++] = surf->sc[i];
+      ulist_surfcollide[nulist_surfcollide++] = surf->sc[i];
 
-  if (ndlist_surfcollide) return 1;
-  return 0;
+  if (nulist_surfcollide) dynamic = 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -1687,9 +1610,9 @@ int Update::dynamic_setup()
 
 void Update::dynamic_update()
 {
-  if (ndlist_surfcollide) {
-    for (int i = 0; i < ndlist_surfcollide; i++)
-      dlist_surfcollide[i]->dynamic();
+  if (nulist_surfcollide) {
+    for (int i = 0; i < nulist_surfcollide; i++)
+      ulist_surfcollide[i]->dynamic();
   }
 }
 
@@ -1903,7 +1826,6 @@ void Update::reset_timestep(bigint newstep)
     modify->compute[i]->invoked_per_particle = -1;
     modify->compute[i]->invoked_per_grid = -1;
     modify->compute[i]->invoked_per_surf = -1;
-    modify->compute[i]->invoked_per_tally = -1;
   }
 
   for (int i = 0; i < modify->ncompute; i++)

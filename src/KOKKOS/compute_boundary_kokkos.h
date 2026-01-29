@@ -54,8 +54,7 @@ class ComputeBoundaryKokkos : public ComputeBoundary, public KokkosBase {
 
 template <int ATOMIC_REDUCTION>
 KOKKOS_INLINE_FUNCTION
-void boundary_tally_kk(double dtremain,
-                       int iface, int istyle, int reaction,
+void boundary_tally_kk(int iface, int istyle, int reaction,
                        Particle::OnePart *iorig,
                        Particle::OnePart *ip,
                        Particle::OnePart *jp,

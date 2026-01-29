@@ -69,6 +69,7 @@ ReadSurf::~ReadSurf()
 
 void ReadSurf::command(int narg, char **arg)
 {
+  //printf("DEBUG: read_surf command started\n"); // <-- for debug added on 2025-07-31
   if (!grid->exist)
     error->all(FLERR,"Cannot read_surf before grid is defined");
   if (surf->implicit)
@@ -603,11 +604,13 @@ void ReadSurf::read_file(char *file)
   // open file
 
   if (filereader) open(file);
+ // printf("DEBUG: read_surf read_file open(file) started\n"); // <-- for debug added on 2025-07-31
 
   // read header
 
   pts = NULL;
   header();
+  //printf("DEBUG: read_surf read_file header() started\n"); // <-- for debug added on 2025-07-31
 
   // read and store data from Points section
 
@@ -833,6 +836,7 @@ void ReadSurf::header()
 
 void ReadSurf::read_points()
 {
+  //printf("DEBUG: read_surf read_points() started\n"); // <-- for debug added on 2025-07-31
   int i,m,n,nchunk;
   char *next,*buf;
 
@@ -894,6 +898,7 @@ void ReadSurf::read_points()
 
 void ReadSurf::read_lines()
 {
+  //printf("DEBUG: read_surf read_lines() started\n"); // <-- for debug added on 2025-07-31
   int i,m,nchunk,type,p1,p2;
   surfint id;
   double x1[2],x2[2];

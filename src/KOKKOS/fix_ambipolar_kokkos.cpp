@@ -65,7 +65,10 @@ FixAmbipolarKokkos::FixAmbipolarKokkos(SPARTA *sparta) :
 #endif
             )
 {
-  copy = 1;
+  ions = NULL;
+  random = NULL;
+  id = NULL;
+  style = NULL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -91,13 +94,13 @@ void FixAmbipolarKokkos::pre_update_custom_kokkos()
 
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
   particle_kk->sync(Device,PARTICLE_MASK|SPECIES_MASK|CUSTOM_MASK);
-  d_particles = particle_kk->k_particles.view_device();
-  d_species = particle_kk->k_species.view_device();
-  auto h_ewhich = particle_kk->k_ewhich.view_host();
+  d_particles = particle_kk->k_particles.d_view;
+  d_species = particle_kk->k_species.d_view;
+  auto h_ewhich = particle_kk->k_ewhich.h_view;
   auto k_eivec = particle_kk->k_eivec;
   auto k_edarray = particle_kk->k_edarray;
-  d_ionambi = k_eivec.view_host()[h_ewhich[ionindex]].k_view.view_device();
-  d_velambi = k_edarray.view_host()[h_ewhich[velindex]].k_view.view_device();
+  d_ionambi = k_eivec.h_view[h_ewhich[ionindex]].k_view.d_view;
+  d_velambi = k_edarray.h_view[h_ewhich[velindex]].k_view.d_view;
 }
 
 /* ----------------------------------------------------------------------

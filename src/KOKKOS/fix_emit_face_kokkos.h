@@ -59,8 +59,6 @@ class FixEmitFaceKokkos : public FixEmitFace {
 #endif
 
  private:
-  int prefactor;
-
   KKCopy<ParticleKokkos> particle_kk_copy;
 
   typedef Kokkos::DualView<Task*, DeviceType::array_layout, DeviceType> tdual_task_1d;

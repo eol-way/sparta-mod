@@ -13,7 +13,6 @@
 ------------------------------------------------------------------------- */
 
 #include "string.h"
-#include <cstdio>
 #include "grid.h"
 #include "error.h"
 
@@ -125,29 +124,7 @@ int Grid::id_find_child(cellint parentID, int plevel,
     ichild = (cellint) iz*nx*ny + (cellint) iy*nx + ix + 1;
     childID = (ichild << plevels[level].nbits) | id;
 
-    if (hash->find(childID) != hash->end()) {
-      int result = (*hash)[childID];
-      // CRITICAL: Validate return value against maxlocal
-      // cinfo array is allocated with size maxlocal, so result must be < maxlocal
-      // Also, we only want to return owned cells (nlocal) for particle assignment
-      // Ghost cells (nlocal <= result < nlocal+nghost) should not be returned
-      if (result >= 0) {
-        if (result >= maxlocal) {
-          // Result exceeds array bounds - return -1 (not found)
-          fprintf(stderr, "ERROR: id_find_child() returning invalid icell=%d >= maxlocal=%d (nlocal=%d, nghost=%d) for point (%g,%g,%g) - returning -1\n",
-                  result, maxlocal, nlocal, nghost, x[0], x[1], x[2]);
-          fflush(stderr);
-          return -1;
-        } else if (result >= nlocal) {
-          // This is a ghost cell - cannot be used for cinfo access
-          // Return -1 to indicate cell not found (owned cell not found)
-          // fprintf(stderr, "DEBUG: id_find_child() returning ghost cell icell=%d (nlocal=%d, nghost=%d) - returning -1\n",
-          //         result, nlocal, nghost);
-          return -1;
-        }
-      }
-      return result;
-    }
+    if (hash->find(childID) != hash->end()) return (*hash)[childID];
 
     id = childID;
     id_child_lohi(level,lo,hi,ichild,clo,chi);

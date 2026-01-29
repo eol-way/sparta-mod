@@ -55,21 +55,25 @@ SurfCollideSpecularKokkos::SurfCollideSpecularKokkos(SPARTA *sparta) :
   sr_kk_global_copy{VAL_2(KKCopy<SurfReactGlobalKokkos>(sparta))},
   sr_kk_prob_copy{VAL_2(KKCopy<SurfReactProbKokkos>(sparta))}
 {
-  copy = 1;
+  id = NULL;
+  style = NULL;
+
+  t_owned = NULL;
+  t_localghost = NULL;
 }
 
 /* ---------------------------------------------------------------------- */
 
 SurfCollideSpecularKokkos::~SurfCollideSpecularKokkos()
 {
-  if (uncopy) {
-    fix_ambi_kk_copy.uncopy();
-    fix_vibmode_kk_copy.uncopy();
+  if (!uncopy) return;
 
-    for (int i = 0; i < KOKKOS_MAX_SURF_REACT_PER_TYPE; i++) {
-      sr_kk_global_copy[i].uncopy();
-      sr_kk_prob_copy[i].uncopy();
-    }
+  fix_ambi_kk_copy.uncopy();
+  fix_vibmode_kk_copy.uncopy();
+
+  for (int i = 0; i < KOKKOS_MAX_SURF_REACT_PER_TYPE; i++) {
+    sr_kk_global_copy[i].uncopy();
+    sr_kk_prob_copy[i].uncopy();
   }
 }
 
@@ -145,7 +149,7 @@ void SurfCollideSpecularKokkos::pre_collide()
 
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
   particle_kk->sync(Device,PARTICLE_MASK|SPECIES_MASK);
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 
   Kokkos::deep_copy(d_scalars,0);
 }
@@ -170,7 +174,7 @@ void SurfCollideSpecularKokkos::post_collide()
 void SurfCollideSpecularKokkos::backup()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 
   if (surf->nsr > 0) {
     int nglob,nprob;

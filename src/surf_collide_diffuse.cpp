@@ -289,13 +289,10 @@ void SurfCollideDiffuse::diffuse(Particle::OnePart *p, double *norm)
         vxdelta = wy*(x[2]-pz) - wz*(x[1]-py);
         vydelta = wz*(x[0]-px) - wx*(x[2]-pz);
         vzdelta = wx*(x[1]-py) - wy*(x[0]-px);
-
-        
-        // COMMENT OUT the following three lines to skip/disable the normal velocity component correction. 
-        // double dot = vxdelta*norm[0] + vydelta*norm[1] + vzdelta*norm[2];
-        // vxdelta -= dot*norm[0];
-        // vydelta -= dot*norm[1];
-        // vzdelta -= dot*norm[2];
+        double dot = vxdelta*norm[0] + vydelta*norm[1] + vzdelta*norm[2];
+        vxdelta -= dot*norm[0];
+        vydelta -= dot*norm[1];
+        vzdelta -= dot*norm[2];
       }
 
       v[0] = vperp*norm[0] + vtan1*tangent1[0] + vtan2*tangent2[0] + vxdelta;

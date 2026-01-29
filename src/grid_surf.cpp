@@ -516,7 +516,7 @@ void Grid::surf2grid_surf_algorithm(int outflag)
 
     irregular = new Irregular(sparta);
     int nrecv1 = irregular->create_data_uniform(nsend,proclist1,1);
-    char *rbuf1 = (char *) memory->smalloc((bigint)nrecv1*nbytes_surf,"surf2grid:rbuf");
+    char *rbuf1 = (char *) memory->smalloc(nrecv1*nbytes_surf,"surf2grid:rbuf");
     irregular->exchange_uniform(sbuf1,nbytes_surf,rbuf1);
     delete irregular;
 
@@ -571,7 +571,7 @@ void Grid::surf2grid_surf_algorithm(int outflag)
 
     irregular = new Irregular(sparta);
     int nrecv2 = irregular->create_data_uniform(nsend,proclist2,1);
-    Send2 *rbuf2 = (Send2 *) memory->smalloc((bigint)nrecv2*sizeof(Send2),"surf2grid:rbuf2");
+    Send2 *rbuf2 = (Send2 *) memory->smalloc(nrecv2*sizeof(Send2),"surf2grid:rbuf2");
     irregular->exchange_uniform((char *) sbuf2,sizeof(Send2),(char *) rbuf2);
     delete irregular;
 
@@ -716,7 +716,7 @@ void Grid::surf2grid_surf_algorithm(int outflag)
 
     irregular = new Irregular(sparta);
     int nrecv3 = irregular->create_data_uniform(nsend,proclist3,1);
-    Send3 *rbuf3 = (Send3 *) memory->smalloc((bigint)nrecv3*sizeof(Send3),
+    Send3 *rbuf3 = (Send3 *) memory->smalloc(nrecv3*sizeof(Send3),
                                              "surf2grid:rbuf3");
     irregular->exchange_uniform((char *) sbuf3,sizeof(Send3),(char *) rbuf3);
     delete irregular;
@@ -1794,7 +1794,6 @@ void Grid::combine_split_cell_particles(int icell, int relabel)
    assign all particles in a split icell to appropriate sub cells
    assumes particles are sorted, are NOT sorted by sub cell when done
    also change particle icell label
-   CRITICAL: particles assigned to zero-volume sub-cells are marked for deletion (icell = -1)
 ------------------------------------------------------------------------- */
 
 void Grid::assign_split_cell_particles(int icell)
@@ -1809,26 +1808,7 @@ void Grid::assign_split_cell_particles(int icell)
   while (ip >= 0) {
     if (dim == 3) jcell = update->split3d(icell,particles[ip].x);
     else jcell = update->split2d(icell,particles[ip].x);
-    
-    // CRITICAL: Check if assigned sub-cell has zero volume
-    // If so, mark particle for deletion instead of assigning to zero-volume cell
-    // CRITICAL: Check against maxlocal (array size) not nlocal
-    // cinfo array is allocated with size maxlocal, so jcell must be < maxlocal
-    if (jcell >= 0 && jcell < grid->maxlocal) {
-      if (jcell < nlocal && cinfo[jcell].volume == 0.0) {
-        particles[ip].icell = -1;  // Mark for deletion
-      } else if (jcell >= nlocal) {
-        // jcell is within array bounds but exceeds nlocal
-        // This can happen if grid was rebalanced - mark for deletion
-        particles[ip].icell = -1;
-      } else {
-        particles[ip].icell = jcell;
-      }
-    } else {
-      // Invalid cell index (out of array bounds), mark for deletion
-      particles[ip].icell = -1;
-    }
-    
+    particles[ip].icell = jcell;
     ip = next[ip];
   }
 

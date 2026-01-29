@@ -13,7 +13,6 @@
 ------------------------------------------------------------------------- */
 
 #include "string.h"
-#include <cstdio>
 #include "fix_move_surf.h"
 #include "move_surf.h"
 #include "update.h"
@@ -129,54 +128,6 @@ void FixMoveSurf::init()
 }
 
 /* ----------------------------------------------------------------------
-   check for zero-volume cells before collide()
-   this prevents "Collision cell volume is zero" errors
-------------------------------------------------------------------------- */
-
-void FixMoveSurf::start_of_step()
-{
-  // Remove particles in zero-volume cells before collide()
-  // This is critical to prevent collision errors
-  // Note: This is called before particle->sort() in update.cpp,
-  // but we also need to check after sort() since sort() may assign
-  // particles to zero-volume cells. However, we can't check after
-  // sort() here, so we rely on the fact that sort() should not
-  // assign particles to zero-volume cells if the grid is properly set up.
-  // If errors still occur, we may need to modify update.cpp to check
-  // after sort() but before collide().
-  if (particle->exist) {
-    Particle::OnePart *particles = particle->particles;
-    Grid::ChildInfo *cinfo = grid->cinfo;
-    int nlocal = particle->nlocal;
-    int delflag = 0;
-    
-    for (int i = 0; i < nlocal; i++) {
-      int icell = particles[i].icell;
-      // CRITICAL: Check against maxlocal (array size) not nlocal
-      if (icell >= 0 && icell < grid->maxlocal) {
-        if (icell < grid->nlocal && cinfo[icell].volume == 0.0) {
-          particles[i].icell = -1;
-          delflag = 1;
-        } else if (icell >= grid->nlocal) {
-          // icell is within array bounds but exceeds nlocal
-          // This can happen if grid was rebalanced - mark for deletion
-          particles[i].icell = -1;
-          delflag = 1;
-        }
-      } else if (icell >= grid->maxlocal) {
-        // icell exceeds array bounds - mark for deletion
-        particles[i].icell = -1;
-        delflag = 1;
-      }
-    }
-    
-    if (delflag) {
-      particle->compress_rebalance();
-    }
-  }
-}
-
-/* ----------------------------------------------------------------------
    move surface points incrementally
 ------------------------------------------------------------------------- */
 
@@ -186,6 +137,10 @@ void FixMoveSurf::end_of_step()
 
   bigint nelapsed = update->ntimestep - ntimestep_original;
   double fraction = 1.0*nelapsed / nlarge;
+
+  // sort particles
+
+  if (particle->exist) particle->sort();
 
   // movesurf moves surface vertices
 
@@ -214,38 +169,6 @@ void FixMoveSurf::end_of_step()
 
   grid->setup_owned();
   grid->acquire_ghosts();
-  // CRITICAL: Rebuild hash table after grid changes
-  // This ensures hash table contains valid cell indices after grid rebalancing
-  if (grid->hashfilled) {
-    grid->rehash();
-  }
-  
-  // CRITICAL: After grid rebalancing, validate and fix all particle icell values
-  // Grid rebalancing may change maxlocal, making existing icell values invalid
-  if (particle->exist) {
-    Particle::OnePart *particles = particle->particles;
-    int nlocal = particle->nlocal;
-    int maxlocal = grid->maxlocal;
-    int delflag = 0;
-    
-    for (int i = 0; i < nlocal; i++) {
-      int icell = particles[i].icell;
-      // Mark particles with invalid icell for deletion
-      // icell must be < maxlocal (array bounds) and < nlocal (owned cells only)
-      if (icell < 0 || icell >= maxlocal || icell >= grid->nlocal) {
-        particles[i].icell = -1;
-        delflag = 1;
-      }
-    }
-    
-    if (delflag) {
-      particle->compress_rebalance();
-      // Re-fetch particles pointer after compress_rebalance()
-      particles = particle->particles;
-      nlocal = particle->nlocal;
-    }
-  }
-  
   grid->reset_neighbors();
   comm->reset_neighbors();
 
@@ -254,31 +177,10 @@ void FixMoveSurf::end_of_step()
   grid->set_inout();
   grid->type_check(0);
 
-  // 1. Detect trapped particles (Logging only)
-  int *trapped_list = NULL;
-  int ntrapped = 0;
-  if (particle->exist) {
-    movesurf->detect_trapped_particles(trapped_list, ntrapped);
-  }
+  // remove particles as needed due to surface move
+  // set ndeleted for scalar output
 
-  // 2. Remove particles (NO PUSH OUT)
-  // ここで push_out_particles を呼んでいた行を完全に削除すること！
-  if (particle->exist) {
-    ndeleted = movesurf->remove_particles();
-    if (comm->me == 0) {
-      if (screen) fprintf(screen,"  " BIGINT_FORMAT " deleted particles\n",ndeleted);
-      if (logfile) fprintf(logfile,"  " BIGINT_FORMAT " deleted particles\n",ndeleted);
-    }
-    // CRITICAL: sort particles after remove_particles()
-    // remove_particles() calls assign_split_cell_particles() which changes icell
-    // but does not update the linked list, so we need to sort
-    particle->sort();
-  } else {
-    ndeleted = 0;
-  }
-
-  // 3. Free trapped_list if allocated
-  if (trapped_list) memory->sfree(trapped_list);
+  if (particle->exist) ndeleted = movesurf->remove_particles();
 
   // notify all classes that store per-grid data that grid may have changed
 

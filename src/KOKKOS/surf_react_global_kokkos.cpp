@@ -54,7 +54,15 @@ SurfReactGlobalKokkos::SurfReactGlobalKokkos(SPARTA *sparta) :
 #endif
             )
 {
-  copy = 1;
+  random = NULL;
+  random_backup = NULL;
+
+  id = NULL;
+  style = NULL;
+  tally_single = NULL;
+  tally_total = NULL;
+  tally_single_all = NULL;
+  tally_total_all = NULL;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -107,7 +115,7 @@ void SurfReactGlobalKokkos::pre_react()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
   particle_kk->sync(Device,PARTICLE_MASK);
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -115,7 +123,7 @@ void SurfReactGlobalKokkos::pre_react()
 void SurfReactGlobalKokkos::backup()
 {
   ParticleKokkos* particle_kk = (ParticleKokkos*) particle;
-  d_particles = particle_kk->k_particles.view_device();
+  d_particles = particle_kk->k_particles.d_view;
 
 #ifdef SPARTA_KOKKOS_EXACT
   if (!random_backup)

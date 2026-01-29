@@ -118,10 +118,7 @@ DumpImage::DumpImage(SPARTA *sparta, int narg, char **arg) :
   particleflag = 1;
   gridflag = 0;
   gridxflag = gridyflag = gridzflag = 0;
-  grid_groupbit = 1;
   surfflag = 0;
-  surf_groupbit = 1;
-
   thetastr = phistr = NULL;
   cflag = STATIC;
   cx = cy = cz = 0.5;
@@ -497,7 +494,6 @@ DumpImage::DumpImage(SPARTA *sparta, int narg, char **arg) :
 
   // additional defaults for dump_modify options
 
-  int ntypes = particle->nspecies;
   pcolortype = new double*[ntypes+1];
   pdiamtype = new double[ntypes+1];
 
@@ -1151,8 +1147,7 @@ void DumpImage::create_image()
   double *color;
 
   // render my partiless
-  // mixture ID is used as a filter by parent class
-  // region is used as a filter by parent class
+  // region is used as constraint by parent class
 
   if (particleflag) {
     Particle::OnePart *particles = particle->particles;
@@ -1162,7 +1157,7 @@ void DumpImage::create_image()
       j = clist[i];
 
       if (pcolor == TYPE) {
-        itype = ubuf(buf[m]).i;
+        itype = static_cast<int> (buf[m]);
         color = pcolortype[itype];
       } else if (pcolor == PROC) {
         color = pcolorproc;
@@ -1173,7 +1168,7 @@ void DumpImage::create_image()
       if (pdiam == NUMERIC) {
         diameter = pdiamvalue;
       } else if (pdiam == TYPE) {
-        itype = ubuf(buf[m+1]).i;
+        itype = static_cast<int> (buf[m+1]);
         diameter = pdiamtype[itype];
       } else if (pdiam == ATTRIBUTE) {
         diameter = buf[m+1];
@@ -1187,8 +1182,7 @@ void DumpImage::create_image()
   // render my grid cells
   // for 2d, draw as rectangle, so particles and grid lines show up
   // for 3d, draw as brick, so particles will be hidden inside
-  // use grid_groupbit as a filter
-  // use region as a filter
+  // use region as constraint
 
   if (gridflag) {
     double value;
@@ -1219,12 +1213,10 @@ void DumpImage::create_image()
 
     int dimension = domain->dimension;
     Grid::ChildCell *cells = grid->cells;
-    Grid::ChildInfo *cinfo = grid->cinfo;
     int nglocal = grid->nlocal;
 
     for (int icell = 0; icell < nglocal; icell++) {
       if (cells[icell].nsplit <= 0) continue;
-      if (!(cinfo[icell].mask & grid_groupbit)) continue;
 
       if (gcolor == PROC) {
         color = gcolorproc;
@@ -1257,9 +1249,8 @@ void DumpImage::create_image()
   }
 
   // render my grid plane(s)
-  // use grid_groupbit as a filter
-  // do not use region as a filter
-  //   NOTE: could add this if allow for specifying different regions
+  // do not use region as constraint
+  // NOTE: could add this if allow for specifying different regions
 
   if (gridxflag || gridyflag || gridzflag) {
     double value;
@@ -1327,12 +1318,10 @@ void DumpImage::create_image()
     Region *region = NULL;
 
     Grid::ChildCell *cells = grid->cells;
-    Grid::ChildInfo *cinfo = grid->cinfo;
     int nglocal = grid->nlocal;
 
     for (int icell = 0; icell < nglocal; icell++) {
       if (cells[icell].nsplit <= 0) continue;
-      if (!(cinfo[icell].mask & grid_groupbit)) continue;
 
       // draw as rectangle, so grid lines show up
 
@@ -1414,9 +1403,8 @@ void DumpImage::create_image()
   }
 
   // render outline of my grid plane(s)
-  // use grid_groupbit as a filter
-  // do not use region as a filter
-  //   NOTE: could add this if allow for specifying different regions
+  // do not use region as constraint
+  // NOTE: could add this if allow for specifying different regions
 
   if (glineflag && (gridxflag || gridyflag || gridzflag)) {
     double x[3];
@@ -1430,15 +1418,12 @@ void DumpImage::create_image()
     diameter *= glinediam;
 
     Grid::ChildCell *cells = grid->cells;
-    Grid::ChildInfo *cinfo = grid->cinfo;
     int nglocal = grid->nlocal;
 
     double box[8][3];
 
     for (int icell = 0; icell < nglocal; icell++) {
       if (cells[icell].nsplit <= 0) continue;
-      if (!(cinfo[icell].mask & grid_groupbit)) continue;
-
       lo = cells[icell].lo;
       hi = cells[icell].hi;
 
@@ -1488,8 +1473,7 @@ void DumpImage::create_image()
   }
 
   // render outline of my grid cells
-  // use grid_groupbit as a filter
-  // use region as a filter
+  // use region as constraint
 
   else if (glineflag) {
     double x[3];
@@ -1503,15 +1487,12 @@ void DumpImage::create_image()
     diameter *= glinediam;
 
     Grid::ChildCell *cells = grid->cells;
-    Grid::ChildInfo *cinfo = grid->cinfo;
     int nglocal = grid->nlocal;
 
     double box[8][3];
 
     for (int icell = 0; icell < nglocal; icell++) {
       if (cells[icell].nsplit <= 0) continue;
-      if (!(cinfo[icell].mask & grid_groupbit)) continue;
-
       lo = cells[icell].lo;
       hi = cells[icell].hi;
 
@@ -1534,8 +1515,7 @@ void DumpImage::create_image()
   }
 
   // render my surf elements
-  // use surf_groupbit as a filter
-  // do not use region as a filter
+  // do not use region as constraint
 
   if (surfflag) {
     double value;
@@ -1601,19 +1581,15 @@ void DumpImage::create_image()
       if (strided) m = me + isurf*nprocs;
       else m = isurf;
 
-      if (dim == 2) {
-        if (!(lines[isurf].mask & surf_groupbit)) continue;
+      if (dim == 2)
         image->draw_line(lines[m].p1,lines[m].p2,color,diameter);
-      } else {
-        if (!(tris[isurf].mask & surf_groupbit)) continue;
+      else
         image->draw_triangle(tris[m].p1,tris[m].p2,tris[m].p3,color);
-      }
     }
   }
 
   // render outline of my surf elements
-  // use surf_groupbit as a filter
-  // do not use region as a filter
+  // do not use region as constraint
 
   if (slineflag) {
     diameter = MIN(boxxhi-boxxlo,boxyhi-boxylo);
@@ -1648,14 +1624,12 @@ void DumpImage::create_image()
       for (int isurf = 0; isurf < nsurf; isurf++) {
         if (strided) m = me + isurf*nprocs;
         else m = isurf;
-        if (!(lines[m].mask & surf_groupbit)) continue;
         image->draw_line(lines[m].p1,lines[m].p2,slinecolor,diameter);
       }
     } else {
       for (int isurf = 0; isurf < nsurf; isurf++) {
         if (strided) m = me + isurf*nprocs;
         else m = isurf;
-        if (!(tris[m].mask & surf_groupbit)) continue;
         image->draw_line(tris[m].p1,tris[m].p2,slinecolor,diameter);
         image->draw_line(tris[m].p2,tris[m].p3,slinecolor,diameter);
         image->draw_line(tris[m].p3,tris[m].p1,slinecolor,diameter);
@@ -1747,6 +1721,66 @@ int DumpImage::modify_param(int narg, char **arg)
 {
   int n = DumpParticle::modify_param(narg,arg);
   if (n) return n;
+
+  if (strcmp(arg[0],"pcolor") == 0) {
+    if (narg < 3) error->all(FLERR,"Illegal dump_modify command");
+    int err,nlo,nhi;
+    if (pcolor == TYPE)
+      err = MathExtra::bounds(arg[1],particle->nspecies,nlo,nhi);
+    else if (pcolor == PROC)
+      err = MathExtra::bounds(arg[1],nprocs,nlo,nhi);
+    else error->all(FLERR,"Illegal dump_modify command");
+    if (err) error->all(FLERR,"Illegal dump_modify command");
+
+    // ptrs = list of ncount colornames separated by '/'
+
+    int ncount = 1;
+    char *nextptr;
+    char *ptr = arg[2];
+    while ((nextptr = strchr(ptr,'/'))) {
+      ptr = nextptr + 1;
+      ncount++;
+    }
+    char **ptrs = new char*[ncount+1];
+    ncount = 0;
+    ptrs[ncount++] = strtok(arg[2],"/");
+    while ((ptrs[ncount++] = strtok(NULL,"/")));
+    ncount--;
+
+    // assign each of ncount colors in round-robin fashion to types or procs
+    // for PROC case, map 0-Nprocs-1 proc ID to 1 to Nprocs colors
+
+    if (pcolor == TYPE) {
+      int m = 0;
+      for (int i = nlo; i <= nhi; i++) {
+        pcolortype[i] = image->color2rgb(ptrs[m%ncount]);
+        if (pcolortype[i] == NULL)
+          error->all(FLERR,"Invalid color in dump_modify command");
+        m++;
+      }
+    } else if (pcolor == PROC) {
+      if (me+1 >= nlo && me+1 <= nhi) {
+        int m = (me+1-nlo) % ncount;
+        pcolorproc = image->color2rgb(ptrs[m]);
+        if (pcolorproc == NULL)
+          error->all(FLERR,"Invalid color in dump_modify command");
+      }
+    }
+
+    delete [] ptrs;
+    return 3;
+  }
+
+  if (strcmp(arg[0],"pdiam") == 0) {
+    if (narg < 3) error->all(FLERR,"Illegal dump_modify command");
+    int err,nlo,nhi;
+    err = MathExtra::bounds(arg[1],particle->nspecies,nlo,nhi);
+    if (err) error->all(FLERR,"Illegal dump_modify command");
+    double diam = atof(arg[2]);
+    if (diam <= 0.0) error->all(FLERR,"Illegal dump_modify command");
+    for (int i = nlo; i <= nhi; i++) pdiamtype[i] = diam;
+    return 3;
+  }
 
   if (strcmp(arg[0],"backcolor") == 0) {
     if (narg < 2) error->all(FLERR,"Illegal dump_modify command");
@@ -1842,75 +1876,6 @@ int DumpImage::modify_param(int narg, char **arg)
     return 2;
   }
 
-  if (strcmp(arg[0],"gridgroup") == 0) {
-    if (narg < 2) error->all(FLERR,"Illegal dump_modify command");
-    int igroup = grid->find_group(arg[1]);
-    if (igroup < 0)
-      error->all(FLERR,"Invalid grid group-ID in dump_modify command");
-    grid_groupbit = grid->bitmask[igroup];
-    return 2;
-  }
-
-  if (strcmp(arg[0],"pcolor") == 0) {
-    if (narg < 3) error->all(FLERR,"Illegal dump_modify command");
-    int err,nlo,nhi;
-    if (pcolor == TYPE)
-      err = MathExtra::bounds(arg[1],particle->nspecies,nlo,nhi);
-    else if (pcolor == PROC)
-      err = MathExtra::bounds(arg[1],nprocs,nlo,nhi);
-    else error->all(FLERR,"Illegal dump_modify command");
-    if (err) error->all(FLERR,"Illegal dump_modify command");
-
-    // ptrs = list of ncount colornames separated by '/'
-
-    int ncount = 1;
-    char *nextptr;
-    char *ptr = arg[2];
-    while ((nextptr = strchr(ptr,'/'))) {
-      ptr = nextptr + 1;
-      ncount++;
-    }
-    char **ptrs = new char*[ncount+1];
-    ncount = 0;
-    ptrs[ncount++] = strtok(arg[2],"/");
-    while ((ptrs[ncount++] = strtok(NULL,"/")));
-    ncount--;
-
-    // assign each of ncount colors in round-robin fashion to types or procs
-    // for PROC case, map 0-Nprocs-1 proc ID to 1 to Nprocs colors
-
-    if (pcolor == TYPE) {
-      int m = 0;
-      for (int i = nlo; i <= nhi; i++) {
-        pcolortype[i] = image->color2rgb(ptrs[m%ncount]);
-        if (pcolortype[i] == NULL)
-          error->all(FLERR,"Invalid color in dump_modify command");
-        m++;
-      }
-    } else if (pcolor == PROC) {
-      if (me+1 >= nlo && me+1 <= nhi) {
-        int m = (me+1-nlo) % ncount;
-        pcolorproc = image->color2rgb(ptrs[m]);
-        if (pcolorproc == NULL)
-          error->all(FLERR,"Invalid color in dump_modify command");
-      }
-    }
-
-    delete [] ptrs;
-    return 3;
-  }
-
-  if (strcmp(arg[0],"pdiam") == 0) {
-    if (narg < 3) error->all(FLERR,"Illegal dump_modify command");
-    int err,nlo,nhi;
-    err = MathExtra::bounds(arg[1],particle->nspecies,nlo,nhi);
-    if (err) error->all(FLERR,"Illegal dump_modify command");
-    double diam = atof(arg[2]);
-    if (diam <= 0.0) error->all(FLERR,"Illegal dump_modify command");
-    for (int i = nlo; i <= nhi; i++) pdiamtype[i] = diam;
-    return 3;
-  }
-
   if (strcmp(arg[0],"scolor") == 0) {
     if (narg < 3) error->all(FLERR,"Illegal dump_modify command");
     int err,nlo,nhi;
@@ -1961,15 +1926,6 @@ int DumpImage::modify_param(int narg, char **arg)
     slinecolor = image->color2rgb(arg[1]);
     if (slinecolor == NULL)
       error->all(FLERR,"Invalid color in dump_modify command");
-    return 2;
-  }
-
-  if (strcmp(arg[0],"surfgroup") == 0) {
-    if (narg < 2) error->all(FLERR,"Illegal dump_modify command");
-    int igroup = surf->find_group(arg[1]);
-    if (igroup < 0)
-      error->all(FLERR,"Invalid surf group-ID in dump_modify command");
-    surf_groupbit = surf->bitmask[igroup];
     return 2;
   }
 

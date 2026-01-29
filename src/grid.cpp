@@ -133,7 +133,7 @@ Grid::Grid(SPARTA *sparta) : Pointers(sparta)
 
   ncustom = 0;
   ename = NULL;
-  etype = esize = estatus = ewhich = NULL;
+  etype = esize = ewhich = NULL;
 
   ncustom_ivec = ncustom_iarray = 0;
   icustom_ivec = icustom_iarray = NULL;
@@ -155,15 +155,14 @@ Grid::Grid(SPARTA *sparta) : Pointers(sparta)
   hash = new MyHash();
   hashfilled = 0;
 
-  copy = copymode = 0;
-  uncopy = 1;
+  copy = uncopy = copymode = 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
 Grid::~Grid()
 {
-  if (copy || copymode) return;
+  if (!uncopy && (copy || copymode)) return;
 
   for (int i = 0; i < ngroup; i++) delete [] gnames[i];
   memory->sfree(gnames);
@@ -187,7 +186,6 @@ Grid::~Grid()
   memory->sfree(ename);
   memory->destroy(etype);
   memory->destroy(esize);
-  memory->destroy(estatus);
   memory->destroy(ewhich);
 
   for (int i = 0; i < ncustom_ivec; i++)
@@ -473,8 +471,6 @@ void Grid::acquire_ghosts(int surfflag)
     error->warning(FLERR,"Could not acquire nearby ghost cells b/c "
                    "grid partition is not clumped");
 
-  for (int i = 0; i < ncustom; i++) grid->estatus[i] = 1;
-
   if (surf->distributed && !surf->implicit) {
     surf->hash->clear();
     surf->hashfilled = 0;
@@ -724,15 +720,12 @@ void Grid::acquire_ghosts_near(int surfflag)
   // perform irregular communication of list of ghost cells
 
   Irregular *irregular = new Irregular(sparta);
-  bigint recvsize;
+  int recvsize;
   int nrecv = irregular->create_data_variable(nsend,proclist,sizelist,
                                               recvsize,comm->commsortflag);
 
-  // reallocate rbuf
-  // must use smalloc since rbuf can be larger than 2 GB
-
   char *rbuf;
-  rbuf = (char *) memory->smalloc(recvsize,"grid:rbuf");
+  memory->create(rbuf,recvsize,"grid:rbuf");
   memset(rbuf,0,recvsize);
 
   irregular->exchange_variable(sbuf,sizelist,rbuf);
@@ -954,15 +947,12 @@ void Grid::acquire_ghosts_near_less_memory(int surfflag)
     // perform irregular communication of list of ghost cells
 
     Irregular *irregular = new Irregular(sparta);
-    bigint recvsize;
+    int recvsize;
     int nrecv = irregular->create_data_variable(nsend,proclist,sizelist,
                                                 recvsize,comm->commsortflag);
 
-    // reallocate rbuf
-    // must use smalloc since rbuf can be larger than 2 GB
-
     char *rbuf;
-    rbuf = (char *) memory->smalloc(recvsize,"grid:rbuf");
+    memory->create(rbuf,recvsize,"grid:rbuf");
     memset(rbuf,0,recvsize);
 
     irregular->exchange_variable(sbuf,sizelist,rbuf);
@@ -1718,7 +1708,7 @@ void Grid::set_inout()
     if (nrecv > maxrecv) {
       memory->sfree(rbuf);
       maxrecv = nrecv;
-      rbuf = (Connect *) memory->smalloc((bigint)maxrecv*sizeof(Connect),"grid:rbuf");
+      rbuf = (Connect *) memory->smalloc(maxrecv*sizeof(Connect),"grid:rbuf");
     }
 
     irregular->exchange_uniform((char *) sbuf,sizeof(Connect),(char *) rbuf);

@@ -60,7 +60,7 @@ class SurfCollideVanishKokkos : public SurfCollideVanish {
     if (ATOMIC_REDUCTION == 0)
       d_nsingle()++;
     else
-      Kokkos::atomic_inc(&d_nsingle());
+      Kokkos::atomic_increment(&d_nsingle());
 
     ip = NULL;
     return NULL;

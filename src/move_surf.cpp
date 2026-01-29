@@ -17,14 +17,12 @@
 #include "move_surf.h"
 #include "surf.h"
 #include "grid.h"
-#include "particle.h"
 #include "comm.h"
 #include "update.h"
 #include "domain.h"
 #include "input.h"
 #include "math_extra.h"
 #include "math_const.h"
-#include "geometry.h"
 #include "memory.h"
 #include "error.h"
 
@@ -808,171 +806,6 @@ void MoveSurf::connect_3d_post()
   // free the hash
 
   delete hash;
-}
-
-/* ----------------------------------------------------------------------
-   detect particles trapped inside solid regions after wall movement
-   uses 2-stage detection: cell-level filtering + particle-level verification
-   returns list of particle indices that are inside solid regions
-   output: trapped_list = array of particle indices, ntrapped = count
-------------------------------------------------------------------------- */
-
-void MoveSurf::detect_trapped_particles(int *&trapped_list, int &ntrapped)
-{
-  if (!particle->exist) {
-    trapped_list = NULL;
-    ntrapped = 0;
-    return;
-  }
-
-  dim = domain->dimension;
-  Grid::ChildCell *cells = grid->cells;
-  Grid::ChildInfo *cinfo = grid->cinfo;
-  int nglocal = grid->nlocal;
-  
-  Particle::OnePart *particles = particle->particles;
-  int *next = particle->next;
-  
-  // Stage 1: Collect candidate cells (INSIDE type or cells with moved surfs)
-  // Stage 2: Check each particle in candidate cells using outside_surfs()
-  
-  int max_trapped = 1000;
-  int ntrapped_local = 0;
-  trapped_list = (int *) memory->smalloc(max_trapped*sizeof(int),
-                                         "move_surf:trapped_list");
-  
-  double xcell[3];
-  
-  // Loop over all local cells
-  for (int icell = 0; icell < nglocal; icell++) {
-    
-    // Skip cells with no particles
-    if (cinfo[icell].count == 0) continue;
-    
-    // Stage 1: Cell-level filtering
-    // Candidate cells: INSIDE type, OVERLAP cells, or cells with moved surfs
-    // For rotation, OVERLAP cells often contain trapped particles
-    bool is_candidate = false;
-    
-    if (cinfo[icell].type == INSIDE) {
-      is_candidate = true;
-    } else if (cinfo[icell].type == OVERLAP) {
-      // OVERLAP cells might contain trapped particles, especially for rotation
-      // Always check OVERLAP cells if they have surfaces
-      if (cells[icell].nsurf > 0) {
-        is_candidate = true;
-      }
-    } else if (cells[icell].nsurf && cells[icell].nsplit >= 1) {
-      // Check if cell contains moved surfs
-      int nsurf = cells[icell].nsurf;
-      surfint *csurfs = cells[icell].csurfs;
-      
-      int m;
-      if (dim == 2) {
-        for (m = 0; m < nsurf; m++) {
-          int isurf = csurfs[m];
-          if (pselect[2*isurf] || pselect[2*isurf+1]) {
-            is_candidate = true;
-            break;
-          }
-        }
-      } else {
-        for (m = 0; m < nsurf; m++) {
-          int isurf = csurfs[m];
-          if (pselect[3*isurf] || pselect[3*isurf+1] || pselect[3*isurf+2]) {
-            is_candidate = true;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Skip if not a candidate cell
-    if (!is_candidate) continue;
-    
-    // Get reference point in cell (outside of surfs)
-    // This is needed for outside_surfs() function
-    if (cells[icell].nsurf > 0) {
-      grid->point_outside_surfs(icell, xcell);
-    } else {
-      // No surfs in cell, use cell center
-      xcell[0] = 0.5 * (cells[icell].lo[0] + cells[icell].hi[0]);
-      xcell[1] = 0.5 * (cells[icell].lo[1] + cells[icell].hi[1]);
-      xcell[2] = 0.5 * (cells[icell].lo[2] + cells[icell].hi[2]);
-    }
-    
-    // Stage 2: Particle-level verification
-    // Check each particle in this cell
-    int ip = cinfo[icell].first;
-    while (ip >= 0) {
-      
-      // Check if particle is inside solid region
-      // outside_surfs() returns 1 if outside, 0 if inside
-      int is_outside = 1;
-      if (cells[icell].nsurf > 0) {
-        is_outside = grid->outside_surfs(icell, particles[ip].x, xcell);
-      } else {
-        // No surfs in cell, particle must be outside
-        is_outside = 1;
-      }
-      
-      // If particle is inside (is_outside == 0), add to trapped list
-      if (is_outside == 0) {
-        if (ntrapped_local >= max_trapped) {
-          max_trapped += 1000;
-          trapped_list = (int *) memory->srealloc(trapped_list,
-                                                  max_trapped*sizeof(int),
-                                                  "move_surf:trapped_list");
-        }
-        trapped_list[ntrapped_local++] = ip;
-      }
-      
-      // Move to next particle in cell
-      ip = next[ip];
-    }
-  }
-  
-  // Gather global count
-  bigint ntrapped_global;
-  bigint ntrapped_big = ntrapped_local;
-  MPI_Allreduce(&ntrapped_big, &ntrapped_global, 1, 
-                MPI_SPARTA_BIGINT, MPI_SUM, world);
-  ntrapped = ntrapped_local;
-  
-  // Log output
-  if (me == 0) {
-    if (screen) {
-      fprintf(screen, "Detected " BIGINT_FORMAT " trapped particles\n",
-              ntrapped_global);
-    }
-    if (logfile) {
-      fprintf(logfile, "Detected " BIGINT_FORMAT " trapped particles\n",
-              ntrapped_global);
-    }
-  }
-  
-  // Detailed log for first few particles (for debugging)
-  if (ntrapped_local > 0 && me == 0) {
-    int nlog = MIN(10, ntrapped_local);
-    if (screen) {
-      fprintf(screen, "  First %d trapped particles (proc 0):\n", nlog);
-      for (int i = 0; i < nlog; i++) {
-        int ip = trapped_list[i];
-        fprintf(screen, "    Particle ID %d: pos = (%.6e, %.6e, %.6e)\n",
-                particles[ip].id,
-                particles[ip].x[0], particles[ip].x[1], particles[ip].x[2]);
-      }
-    }
-    if (logfile) {
-      fprintf(logfile, "  First %d trapped particles (proc 0):\n", nlog);
-      for (int i = 0; i < nlog; i++) {
-        int ip = trapped_list[i];
-        fprintf(logfile, "    Particle ID %d: pos = (%.6e, %.6e, %.6e)\n",
-                particles[ip].id,
-                particles[ip].x[0], particles[ip].x[1], particles[ip].x[2]);
-      }
-    }
-  }
 }
 
 /* ----------------------------------------------------------------------

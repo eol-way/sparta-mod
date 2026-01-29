@@ -34,7 +34,7 @@ class ReactBirdKokkos : public ReactBird {
 #ifdef SPARTA_KOKKOS_EXACT
                                           , sparta
 #endif
-                                          ) {random_backup = NULL; copy = 1;}
+                                          ) {random_backup = NULL;};
   virtual ~ReactBirdKokkos();
   virtual void init();
   virtual int attempt(Particle::OnePart *, Particle::OnePart *,
