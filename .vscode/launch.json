@@ -1,25 +1,31 @@
 {
     "version": "0.2.0",
     "configurations": [
-        
-
         {
-            "name": "Debug SPARTA (Serial)",
+            "name": "(gdb) Launch SPARTA (Debug)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/src/spa_mpi",
+            // 【重要】ビルドされた実行ファイルのパスを指定
+            // ※ CMakeの設定によっては "build/src/spa_plain" かもしれません。確認してください。
+            "program": "${workspaceFolder}/src/spa_plain",
+            
+            // 【重要】実行時の引数（インプットスクリプト等）
+            // ここでは bench フォルダのテスト用スクリプトを指定する例です
             "args": [
-                "-in",
-                "in.surf.rotate"  // ← ここに使いたい入力ファイル名を書く
+                "-in", "in.lj" 
             ],
+            
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/examples/surf", // ← データがある場所を作業ディレクトリにする
+            
+            // 【重要】実行時のカレントディレクトリ（インプットファイルがある場所）
+            "cwd": "${workspaceFolder}/bench",
+            
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
                 {
-                    "description": "Enable pretty-printing for gdb",
+                    "description": "gdb の pretty-printing を有効にする",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
                 }
