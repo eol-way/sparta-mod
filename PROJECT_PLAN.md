@@ -1,909 +1,597 @@
-# SPARTA改造計画書 - 実装詳細版
+# SPARTA改造計画書 Rev2 — ルーツポンプの移動境界対応
 
-**作成日**: 2026年01月30日  
-**参照元**: `build/SPARTA改造計画書Rev1.pdf`  
-**目的**: 壁内粒子の押し出し処理と回転壁の速度考慮を実装
-
----
-
-## 📋 目次
-
-1. [プロジェクト概要](#プロジェクト概要)
-2. [開発方針とルール](#開発方針とルール)
-3. [Phase 1: 粒子押し出し (Sweeping)](#phase-1-粒子押し出し-sweeping)
-4. [Phase 2: 壁速度補正の運用整理](#phase-2-壁速度補正の運用整理)
-5. [実装チェックリスト](#実装チェックリスト)
-6. [デバッグとテスト](#デバッグとテスト)
+**Rev1 作成日**: 2026年01月30日（参照元: `build/SPARTA改造計画書Rev1.pdf`）
+**Rev2 改訂日**: 2026年09月29日（同日の設計レビュー結果に基づき全面改訂）
+**ステータス**: 設計段階（着手前に決めるべき事項は [12章](#12-未決事項着手前に決めること)）
+**対象ブランチ**: `phase0-detection`（以降はフェーズごとにブランチを切る）
 
 ---
 
-## プロジェクト概要
+## 目次
 
-### 目的
-壁移動時に壁内に取り残された粒子を削除するのではなく、**幾何学的に最近傍の壁面へ射影して押し出し、反射速度を更新する**機能を実装する。
-
-### 現状の問題点
-- 現在の`MoveSurf::remove_particles()`は壁内粒子を単純に削除している
-- 回転壁の速度が反射時に考慮されていない
-
-### 変更の影響範囲
-- **主要ファイル**: `src/move_surf.cpp`, `src/move_surf.h`
-- **関連ファイル**: `src/surf_collide_*.cpp`, `src/update.cpp`, `src/grid_surf.cpp`
-- **新規ファイル**: なし（既存ファイルの拡張）
-
----
-
-## 開発方針とルール
-
-### 1. コード変更のトレーサビリティ
-
-**統一タグルール**:
-- すべての変更箇所に `// [MODIFIED] Phase X` タグを付与
-- 削除したコードはコメントアウトで残し、`// [REMOVED] Phase X: 理由` を記載
-- 新規追加コードには `// [ADDED] Phase X: 説明` を記載
-
-**例**:
-```cpp
-// [MODIFIED] Phase 1: セル内無差別削除判定から幾何学判定に変更
-if (geometric_distance_check(...)) {
-  // [ADDED] Phase 1: 最近傍点への射影処理
-  project_to_nearest_surface(...);
-}
-```
-
-### 2. デバッグログの埋め込み
-
-**デバッグフラグ**:
-```cpp
-#define DEBUG_SPARTA_SWEEP 0  // Phase 1用
-#define DEBUG_SPARTA_ROTATE 0  // Phase 2用
-```
-
-**ログ出力例**:
-```cpp
-#if DEBUG_SPARTA_SWEEP
-  if (me == 0) {
-    fprintf(screen, "SWEEP: Particle %d at (%g,%g,%g) projected to (%g,%g,%g)\n",
-            particle_id, x_old[0], x_old[1], x_old[2], x_new[0], x_new[1], x_new[2]);
-  }
-#endif
-```
-
-### 3. 既存コードの保持
-
-- **削除せずコメントアウト**: 既存の`remove_particles()`ロジックは残す
-- **後方互換性**: 既存の動作モードを維持（フラグで切り替え可能に）
+1. [プロジェクト概要](#1-プロジェクト概要)
+2. [現状コードの問題点（調査結果）](#2-現状コードの問題点調査結果)
+3. [設計方針](#3-設計方針)
+4. [開発方針とルール](#4-開発方針とルール)
+5. [Phase 0: 計測・診断基盤](#5-phase-0-計測診断基盤力学は変えない)
+6. [Phase 1: 剛体運動学と壁静止系反射](#6-phase-1-剛体運動学と壁静止系反射)
+7. [Phase 2: めり込み補正（最小改修版）](#7-phase-2-めり込み補正最小改修版2d-検証用)
+8. [Phase 3: 形状表現（解析SDF・ファセット品質）](#8-phase-3-形状表現解析-sdf-とファセット品質)
+9. [Phase 4: 連続衝突判定と再カットの局所化](#9-phase-4-連続衝突判定と再カットの局所化性能)
+10. [Phase 5: HPC・本番化](#10-phase-5-hpc本番化)
+11. [検証計画](#11-検証計画)
+12. [未決事項](#12-未決事項着手前に決めること)
+13. [Rev1 からの変更点](#13-rev1-からの変更点)
+14. [参照ファイル一覧](#14-参照ファイル一覧)
 
 ---
 
-## Phase 1: 粒子押し出し (Sweeping)
+## 1. プロジェクト概要
 
-### 1.1 概要
+### 1.1 目的
 
-壁移動後に壁内に取り残された粒子を検知し、最近傍の非透明な壁面要素へ射影して押し出す。純粋な幾何学的判定のみを使用。透明な表面要素は除外（粒子は通過するため、壁内判定・反射処理の対象外）。
+SPARTA で、ルーツポンプの真空排気を DSMC 法で解析できるようにする。対象は、2本の逆回転ロータが噛み合い、ロータ–ケーシング間とロータ–ロータ間に数 μm のクリアランスを持つポンプである。そのために、移動壁について次の2点を物理的に正しく扱えるようにする。
 
-### 1.2 実装タスク
+- 壁の移動で固体内に取り残された粒子（めり込み）の処理
+- 移動壁から気体への運動量・エネルギーの伝達（反射）
 
-#### [ ] タスク 1.1: 壁内粒子の検知機能の実装
+### 1.2 対象外
 
-**ファイル**: `src/move_surf.cpp`, `src/move_surf.h`
+- ロータの角速度は与条件とする（気体の反トルクによる回転数変化は連成しない）
+- ロータ・ケーシングの熱変形・弾性変形は扱わない
+- 表面化学反応は既存機能の範囲で使うが、本計画の検証対象にはしない
 
-**関数名**: `detect_inside_particles()` (新規)
+### 1.3 前提スケール（設計値）
 
-**実装内容**:
-1. INSIDE/OVERLAPセルを先に特定し、それらのセル内の粒子のみを走査する（OUTSIDEセルの粒子は触らないため高速化）
-2. セルごとに`cinfo[icell].first`と`particle->next[i]`のリンクリストで粒子をたどる
-3. INSIDEセルの粒子は確実に壁内として検出
-4. OVERLAPセル（非透明な表面要素を持つセル）の粒子は`Grid::outside_surfs()`を使用して壁内判定
-5. 透明な表面要素のみのセルは除外（粒子は通過するため）
-6. 子セル（`nsplit <= 0`）は除外し、親/unsplitセルのみを探索
-7. 壁内粒子のリストを作成
+N₂、300 K、代表クリアランス h = 5 μm を仮定する（h は [12章](#12-未決事項着手前に決めること) で確定させる）。
 
-**注意**: `remove_particles()`呼び出し前に`particle->sort()`が実行されていること（`command()`内で保証）を前提とする。
+| 量 | 値 |
+|---|---|
+| 最確速度 c_mp / 平均速度 c̄ | 422 / 476 m/s |
+| 翼先端速度 V_tip（R = 75–100 mm、50–100 Hz） | 24–63 m/s（V_tip/c_mp = 0.06–0.15） |
+| 平均自由行程 λ | 1 Pa: 5.4 mm、100 Pa: 54 μm、1000 Pa: 5.4 μm |
+| クリアランスの Kn = λ/h | 約1000（1 Pa）〜 約1（1000 Pa）：自由分子〜遷移域 |
+| 格子幅 Δx ≈ h/5、時間刻み Δt ≈ Δx/c_mp | 1 μm、2.4 ns |
+| 1ステップの壁移動量 | 約 0.11 μm（約 0.02h）、回転角 約 1.5×10⁻⁶ rad |
+| 1回転あたりのステップ数 | 4–8×10⁶ |
 
-**関数シグネチャ**:
-```cpp
-// src/move_surf.h
-private:
-  struct InsideParticle {
-    int particle_index;
-    int icell;
-    double x[3];
-  };
-  std::vector<InsideParticle> detect_inside_particles();
-```
-
-**実装詳細**:
-```cpp
-// src/move_surf.cpp
-std::vector<MoveSurf::InsideParticle> MoveSurf::detect_inside_particles()
-{
-  // [ADDED] Phase 1: 壁内粒子の検知（セル先走査でOUTSIDEセル内粒子をスキップ）
-  std::vector<InsideParticle> inside_particles;
-
-  Grid::ChildCell *cells = grid->cells;
-  Grid::ChildInfo *cinfo = grid->cinfo;
-  Particle::OnePart *particles = particle->particles;
-  int *next = particle->next;
-  int nglocal = grid->nlocal;
-
-  for (int icell = 0; icell < nglocal; icell++) {
-    if (cells[icell].nsplit <= 0) continue;  // 子セルは除外（親/unsplitのみ探索）
-    if (cinfo[icell].type != INSIDE && cinfo[icell].type != OVERLAP) continue;
-
-    int i = cinfo[icell].first;
-    while (i >= 0) {
-      if (cinfo[icell].type == INSIDE) {
-        InsideParticle p;
-        p.particle_index = i;
-        p.icell = icell;
-        p.x[0] = particles[i].x[0];
-        p.x[1] = particles[i].x[1];
-        p.x[2] = particles[i].x[2];
-        inside_particles.push_back(p);
-      } else {
-        // OVERLAPセル: 幾何学的判定
-        double xcell[3];
-        if (grid->point_outside_surfs(icell, xcell)) {
-          if (!grid->outside_surfs(icell, particles[i].x, xcell)) {
-            InsideParticle p;
-            p.particle_index = i;
-            p.icell = icell;
-            p.x[0] = particles[i].x[0];
-            p.x[1] = particles[i].x[1];
-            p.x[2] = particles[i].x[2];
-            inside_particles.push_back(p);
-          }
-        }
-      }
-      i = next[i];
-    }
-  }
-
-  return inside_particles;
-}
-```
+1回転が 10⁶–10⁷ ステップになるので、毎ステップの全域処理は許容できない。また、毎ステップ生じるバイアスは累積する。本計画のすべての判断はこの前提に立つ。
 
 ---
 
-#### [ ] タスク 1.2: 最近傍点への射影処理の実装
+## 2. 現状コードの問題点（調査結果）
 
-**ファイル**: `src/move_surf.cpp`, `src/geometry.cpp` (既存関数を利用)
+行番号は改修前（upstream と同一の `src/`）のもの。
 
-**関数名**: `project_to_nearest_surface()` (新規)
+| # | 問題 | 根拠 | 帰結 |
+|---|---|---|---|
+| P1 | 時間進行が「壁を止めて粒子を動かす → 壁を瞬間移動させる」の分割になっている | [update.cpp:291-351](src/update.cpp#L291-L351)、[fix_move_surf.cpp:111-116](src/fix_move_surf.cpp#L111-L116)、[fix_move_surf.cpp:134-188](src/fix_move_surf.cpp#L134-L188) | めり込みの発生率 Ṅ = n·(u_w·n)⁺·A は Δt→0 でも減らない。解像度ではなく境界条件の問題 |
+| P2 | 移動した要素を含むセルの**全粒子**を削除する | [move_surf.cpp:847-872](src/move_surf.cpp#L847-L872)、[doc/move_surf.txt:82-96](doc/move_surf.txt#L82-L96) | ロータ表面が付着確率 α_eff ~ min(1, 2/N_every) のゲッターになる。形状が変わらない回転円柱でも起きる |
+| P3 | 衝突判定が片側だけ（`side == OUTSIDE` のみ） | [update.cpp:870](src/update.cpp#L870)、[geometry.cpp:1062-1065](src/geometry.cpp#L1062-L1065) | 壁内に残った粒子は固体を素通りし、吸入側と吐出側の間に非物理的な漏れ経路ができる |
+| P4 | param = 0 の衝突が20回続くと粒子を削除する（`MAXSTUCK`） | [update.cpp:941-994](src/update.cpp#L941-L994)。件数は run 終了時にしか出力されない（[finish.cpp:178](src/finish.cpp#L178)） | 狭まる楔やファセット交差部での、別の質量損失経路 |
+| P5 | 壁速度が反射モデルに渡らない | [update.cpp:917-922](src/update.cpp#L917-L922) | 形状が動いても、反射は静止壁として計算される |
+| P6 | `translate/rotate` は接線成分しか付加しない | [surf_collide_diffuse.cpp:287-296](src/surf_collide_diffuse.cpp#L287-L296)、[doc/surf_collide.txt:443-449](doc/surf_collide.txt#L443-L449) | 翼フランクの法線速度（p·dV 仕事）が消える。エネルギー収支が閉じない |
+| P7 | 鏡面反射系が実験室系で計算される | [surf_collide_diffuse.cpp:220-221](src/surf_collide_diffuse.cpp#L220-L221)、[surf_collide_specular.cpp:99](src/surf_collide_specular.cpp#L99)、[surf_collide_cll.cpp:249-282](src/surf_collide_cll.cpp#L249-L282) | 前進壁に追い越される粒子（0 < v_n < u_n）の反射が符号から誤る |
+| P8 | `translate` の法線速度分布が「静止平面を横切る分布」になっている | [surf_collide_diffuse.cpp:269-285](src/surf_collide_diffuse.cpp#L269-L285) | 壁が前進するとき、壁静止系で壁に向かう速度での放出を許す（直後に再めり込み） |
+| P9 | 運動学を二重に入力する必要がある | [examples/surf/in.surf.rotate](examples/surf/in.surf.rotate)（`fix move/surf … rotate 360` を 2000 step と、`rotate … 31.4159` を別々に指定） | 値や符号規約の取り違えを検出できない |
+| P10 | ファセットの矢高 RΔφ²/8 がクリアランスに匹敵する | R = 75 mm、1° ファセットで 2.9 μm ≈ h | クリアランスの周期的な伸縮、形状同士の交差 |
+| P11 | 幾何判定の許容誤差が絶対値 | [geometry.cpp:1037-1040](src/geometry.cpp#L1037-L1040)（コード自身が「サイズの大きく異なる三角形には頑健でない」と注記） | μm の要素と大きな要素が混在すると判定が不安定になる |
+| P12 | 移動のたびに全域を再カットし、表面要素は非分散が必須 | [move_surf.cpp:72-74](src/move_surf.cpp#L72-L74)、[fix_move_surf.cpp:41-43](src/fix_move_surf.cpp#L41-L43)、[fix_move_surf.cpp:153-178](src/fix_move_surf.cpp#L153-L178) | 1回転 4–8×10⁶ ステップとは両立しない |
+| P13 | Kokkos 版は移動のたびに全データをホストへ同期する | [KOKKOS/fix_move_surf_kokkos.cpp:49-70](src/KOKKOS/fix_move_surf_kokkos.cpp#L49-L70) | GPU では移動ごとに粒子・格子・表面を丸ごと転送する |
+| P14 | 回転座標系で壁を止める手が使えない | 2本のロータの包絡円が重なる | 全壁が静止する座標系は存在せず、実験室系で扱うしかない |
 
-**実装内容**:
-1. 粒子位置から最近傍の非透明な表面要素（Line/Tri）を探索
-2. 透明な表面要素はスキップ（粒子は通過するため）
-3. 表面要素上の最近傍点を計算
-4. 安全マージンεを付与して再配置
-
-**関数シグネチャ**:
-```cpp
-// src/move_surf.h
-private:
-  int project_to_nearest_surface(double *x, int icell, double *x_projected,
-                                 double *norm, int &isurf);
-  double epsilon_sweep;  // 安全マージン（デフォルト: 1e-6）
-```
-
-**実装詳細**:
-```cpp
-// src/move_surf.cpp
-int MoveSurf::project_to_nearest_surface(double *x, int icell,
-                                         double *x_projected,
-                                         double *norm, int &isurf)
-{
-  // [ADDED] Phase 1: 最近傍表面への射影
-  
-  double mindist = BIG;
-  int minisurf = -1;
-  double minproj[3], minnorm[3];
-
-  
-  Grid::ChildCell *cells = grid->cells;
-  Grid::ChildInfo *cinfo = grid->cinfo;
-  Grid::SplitInfo *sinfo = grid->sinfo;
-
-  // 呼び出し側から受け取ったセルIDを使用（xから逆引きしない）
-  if (icell < 0 || icell >= grid->nlocal) return 0;
-
-  // 子セルなら親splitセルへ正規化してから探索（なぜなら、nsurf = cells[icell].nsurfで呼び出されるのは親セルが所有するサーフェスになるから）
-  if (cells[icell].nsplit <= 0)
-    icell = sinfo[cells[icell].isplit].icell;
-  
-  // OVERLAPセルのみ処理（非透明な表面要素を持つセル）
-  if (cinfo[icell].type == OVERLAP && cells[icell].nsurf > 0) {
-    surfint *csurfs = cells[icell].csurfs;
-    int nsurf = cells[icell].nsurf;
-    
-    for (int m = 0; m < nsurf; m++) {
-      int isurf_local = csurfs[m];
-      
-      // 透明な表面要素はスキップ（粒子は通過するため）
-      if (dim == 2) {
-        if (surf->lines[isurf_local].transparent) continue;
-      } else {
-        if (surf->tris[isurf_local].transparent) continue;
-      }
-
-      double dist;
-      if (dim == 2) {
-        Surf::Line *line = &surf->lines[isurf_local];
-        dist = Geometry::distsq_point_line(x, line->p1, line->p2);
-      } else {
-        Surf::Tri *tri = &surf->tris[isurf_local];
-        dist = Geometry::distsq_point_tri(x, tri->p1, tri->p2, tri->p3, tri->norm);
-      }
-
-      // ループ内は最小距離探索のみ
-      if (dist < mindist) {
-        mindist = dist;
-        minisurf = isurf_local;
-      }
-    }
-  }
-  
-  if (minisurf >= 0) {
-    if (dim == 2) {
-      Surf::Line *line = &surf->lines[minisurf];
-
-      // 法線は事前計算済み値を再利用（毎回の外積計算はしない）
-      minnorm[0] = line->norm[0];
-      minnorm[1] = line->norm[1];
-      minnorm[2] = line->norm[2];
-
-      // 点xを線分(p1-p2)へ射影し、tを[0,1]にクランプして線分上にスナップ
-      double dx = line->p2[0] - line->p1[0];
-      double dy = line->p2[1] - line->p1[1];
-      double dz = line->p2[2] - line->p1[2];
-      double len2 = dx*dx + dy*dy + dz*dz;
-
-      if (len2 > 0.0) {
-        double t = ((x[0] - line->p1[0]) * dx +
-                    (x[1] - line->p1[1]) * dy +
-                    (x[2] - line->p1[2]) * dz) / len2;
-        if (t < 0.0) t = 0.0;
-        else if (t > 1.0) t = 1.0;
-
-        minproj[0] = line->p1[0] + t * dx;
-        minproj[1] = line->p1[1] + t * dy;
-        minproj[2] = line->p1[2] + t * dz;
-      } else {
-        // 退化線分（長さ0）は端点へ退避
-        minproj[0] = line->p1[0];
-        minproj[1] = line->p1[1];
-        minproj[2] = line->p1[2];
-      }
-    } else {
-      Surf::Tri *tri = &surf->tris[minisurf];
-
-      // 法線は事前計算済み値を再利用
-      minnorm[0] = tri->norm[0];
-      minnorm[1] = tri->norm[1];
-      minnorm[2] = tri->norm[2];
-
-      // 点xを三角形が張る無限平面へ射影（垂線の足）
-      double vx = x[0] - tri->p1[0];
-      double vy = x[1] - tri->p1[1];
-      double vz = x[2] - tri->p1[2];
-      double signed_dist = vx*minnorm[0] + vy*minnorm[1] + vz*minnorm[2];
-
-      minproj[0] = x[0] - signed_dist * minnorm[0];
-      minproj[1] = x[1] - signed_dist * minnorm[1];
-      minproj[2] = x[2] - signed_dist * minnorm[2];
-    }
-
-    x_projected[0] = minproj[0];
-    x_projected[1] = minproj[1];
-    x_projected[2] = minproj[2];
-    norm[0] = minnorm[0];
-    norm[1] = minnorm[1];
-    norm[2] = minnorm[2];
-
-    // 安全マージンεを法線方向に付与
-    x_projected[0] += epsilon_sweep * norm[0];
-    x_projected[1] += epsilon_sweep * norm[1];
-    x_projected[2] += epsilon_sweep * norm[2];
-    isurf = minisurf;
-    return 1;
-  }
-  
-  return 0;  // 射影失敗
-}
-```
-
-**使用する既存関数**:
-- `distsq_point_line()` (geometry.cpp:1251)
-- `distsq_point_tri()` (geometry.cpp:1289)
+補足（P2 の定量評価）: 仮に「本当に壁内にいる粒子だけ」を削除しても、前進面では入射フラックス比で 4(u_w·n)⁺/c̄ ≈ 最大 0.2–0.5 の吸い込みが残る。削除はどの形でも採用できない。N_every を上げれば吸い込みは減るが、1回のジャンプがクリアランスに近づく（N_every = 4 で 0.45 μm ≈ 0.1h）ので、両方を満たす設定はない。
 
 ---
 
-#### [ ] タスク 1.3: 反射速度の更新処理
+## 3. 設計方針
 
-**ファイル**: `src/move_surf.cpp`, `src/surf_collide_*.cpp`
+### 3.1 基本原則
 
-**関数名**: `update_reflection_velocity()` (新規)
+1. **バイアスは仕組みで取り除く。** 削除や誤った反射モデルが生むのは分散ではなくバイアスであり、平均化では消えない。
+2. **反射は壁静止系で行う。** 既存の `SurfCollide` をガリレイ変換で挟み、`SurfCollide` 本体は改修しない。
+3. **運動学の情報源は1つにする。** 形状の移動・反射・集計がすべて同じ剛体運動学を参照する。
+4. **めり込みは多層防御で扱う。** 予防 → 補正 → 退避 → 計上付き削除、の順に処理する。
+5. **粒子を黙って消さない。** 削除する場合は必ず理由別に計上して出力する。
+6. **許容誤差は相対値で定義する。** 局所セル寸法か要素寸法を基準にし、新たな絶対値の ε を導入しない。
+7. **衝突判定用の形状と、格子カット情報の更新を切り離す。** 本番性能のため（Phase 4）。
 
-**実装内容**:
-1. 射影した表面要素の`isc`（surface collide ID）を取得
-2. `surf->sc[isc]` の仮想関数 `collide()` を呼び出し
-3. 反射速度を計算して粒子速度を更新（モデル選択はSPARTAの仮想関数に委譲）
+### 3.2 境界条件の定式化
 
-**関数シグネチャ**:
-```cpp
-// src/move_surf.h
-private:
-  void update_reflection_velocity(Particle::OnePart *p, int isurf, double *norm);
+本来課すべき境界条件は、動く境界 ∂Ω(t) 上で壁静止系の散乱核を使うものである。
+
+```text
+x ∈ ∂Ω(t),  (c − u_w)·n > 0 :
+|(c − u_w)·n| f(c) = ∫_{(c'−u_w)·n<0} |(c' − u_w)·n| K(c' − u_w → c − u_w) f(c') dc'
+
+剛体 k の壁速度:  u_w(x, t) = V_k + ω_k × (x − c_k)     （法線成分を含むベクトル全体）
 ```
 
-**実装詳細**:
-```cpp
-// src/move_surf.cpp
-void MoveSurf::update_reflection_velocity(Particle::OnePart *p, int isurf,
-                                          double *norm)
-{
-  // [ADDED] Phase 1: 反射速度の更新
-  
-  Surf::Line *lines = surf->lines;
-  Surf::Tri *tris = surf->tris;
-  
-  int isc;  // surface collide ID
-  if (dim == 2) {
-    isc = lines[isurf].isc;
-  } else {
-    isc = tris[isurf].isc;
-  }
+現行実装は、これを「u_w = 0 の静止境界条件」と「形状の瞬間移動」に置き換えている。その差が、1ステップで壁が掃いた体積 Σ = {φ(x,tⁿ) > 0 かつ φ(x,tⁿ⁺¹) < 0} であり、その中の粒子がめり込み粒子である。
 
-  // セーフティチェック: 反射モデル未割当て(-1)や範囲外アクセスを防ぐ
-  if (isc < 0 || isc >= surf->nsc || surf->sc[isc] == NULL) {
-    if (me == 0) {
-      error->warning(FLERR,
-        "Surface collide model is not assigned for projected surface element");
-    }
-    return;
-  }
+### 3.3 壁静止系反射（ガリレイ変換ラッパー）
 
-  // SPARTAの仮想関数でモデル選択を委譲（Diffuse/Specular/CLLをif分岐しない）
-  // surf_modifyで割り当てられたiscに応じて適切な派生クラスのcollide()が呼ばれる
-  double dt_dummy = 0.0;
-  int isr = -1;  // 化学反応なし
-  int reaction = 0;
-  surf->sc[isc]->collide(p, dt_dummy, isurf, norm, isr, reaction);
-  //現状のpには反射前粒子速度がそのまま入っているので、specular処理でも問題ない
-  
-  // Phase 2方針:
-  // 壁速度補正は surf->sc[isc]->collide() の内部実装
-  // （surf_collide diffuse/cll の translate/rotate 等）に委譲する。
-  // MoveSurf 側で追加の速度加算は行わない。
-}
-```
+衝突点 x_c・衝突時刻 t_c で次の3段階を行う。
 
-**注意事項**:
-- `SurfCollide` 派生クラス（Diffuse/Specular/CLLなど）の直接メソッド呼び出しは行わない
-- `surf->sc[isc]->collide()` の仮想関数ディスパッチにモデル選択を委譲する
-- `isc` は未割当てで `-1` の可能性があるため、呼び出し前に範囲・NULLチェックを行う
-- `isr = -1`（化学反応なし）では戻り値 `jp` は使用しないため、捨て打ちで呼び出す
-- `collide()` 呼び出しにより `nsingle` など統計カウンタは増加する（コストは軽微）
+1. 壁静止系の速度にする: `w = v − u_w(x_c, t_c)`
+2. 既存の `SurfCollide::collide()` を `w` に対してそのまま呼ぶ（表面反応 `SurfReact` を含む）
+3. 実験室系に戻す: `v' = w' + u_w`（元の粒子と、反応で生成された粒子の両方）
 
+回転・振動の内部エネルギーは座標系に依存しないので変換しない。
+
+| 反射モデル | 移動物体での扱い |
+|---|---|
+| specular | ラッパー経由でそのまま使える。結果は `v' = v − 2((v − u_w)·n) n` |
+| diffuse | ラッパー経由でそのまま使える。結果は `v' = u_w + c_r`（c_r は壁静止系の半空間フラックス・マクスウェル分布） |
+| diffuse の鏡面側（acc < 1） | ラッパーにより壁静止系で処理される（P7 の解消） |
+| cll | 核に入るのが壁静止系の入射速度になる（P7 の解消）。`partial` の数値ガードを追加（Phase 1） |
+| td / impulsive / adiabatic | 壁静止系で定義されたモデルとして適用する（Phase 1 で個別に確認） |
+| piston | **移動物体では禁止**（独自の座標変換と `dtremain` の書き換えを内蔵しているため） |
+| diffuse/cll の `translate`・`rotate` キーワード | **移動物体では禁止**（二重加算になり、法線成分の扱いも誤っているため） |
+| transparent / vanish | 変換の対象外（素通り・消滅なので速度を使わない） |
+
+### 3.4 めり込み処理の階層
+
+| 層 | 方式 | 役割 | 導入フェーズ |
+|---|---|---|---|
+| 予防 | 物体座標系での連続衝突判定（陽的要素または解析 SDF） | めり込みを発生させない | Phase 4 |
+| 補正（主） | 遡及衝突（鏡像法） | めり込み粒子を「実際に起きたはずの壁衝突」として処理する | Phase 2 |
+| 補正（拡散壁の代替） | 統計的再放出 | 完全拡散壁で、遡及衝突の条件が成立しない粒子を再放出する | Phase 2 |
+| 退避 | 最近傍の壁面への射影（Rev1 方式を修正） | 上記がすべて不成立な場合 | Phase 2 |
+| 最終手段 | 計上付き削除 | 退避にも失敗した場合だけ | Phase 2 |
+
+予防層が機能していれば、補正層以下の発生件数はほぼゼロになる。補正層以下は監視と安全網として残す。
+
+### 3.5 フェーズ全体像
+
+| Phase | 内容 | 位置づけ | 完了の目安 |
+|---|---|---|---|
+| 0 | 計測・診断基盤（力学は変えない） | 問題の大きさを定量化し、比較の基準を作る | めり込み検出数が理論値と一致 |
+| 1 | 剛体運動学の単一情報源と壁静止系反射 | 反射の物理を正す | 1粒子試験と同心円筒クエットで合格 |
+| 2 | めり込み補正（最小改修版） | バイアスを取り除く（2D 検証用、性能は問わない） | 剛体回転容器の受け入れ試験に合格 |
+| 3 | 形状表現（解析 SDF・ファセット品質） | μm クリアランスでの形状誤差を無くす | SDF で T1–T3 が再現 |
+| 4 | 連続衝突判定と再カットの局所化 | 本番性能を得る | 静止形状の 1.5 倍以内の計算時間 |
+| 5 | HPC・本番化 | GPU・負荷分散・統計処理・3D | 排気速度・圧縮比を信頼区間付きで算出 |
 
 ---
 
-#### [ ] タスク 1.4: INSIDEセル粒子の救済処理
+## 4. 開発方針とルール
 
-**ファイル**: `src/move_surf.cpp`
+### 4.1 コード変更のトレーサビリティ（Rev1 から継続）
 
-**関数名**: `rescue_inside_particles()` (新規)
+- すべての変更箇所に `// [MODIFIED] Phase X` タグを付ける
+- 削除したコードはコメントアウトで残し、`// [REMOVED] Phase X: 理由` を付ける
+- 新規追加コードには `// [ADDED] Phase X: 説明` を付ける
 
-**実装内容**:
-1. INSIDEセルの粒子に対して近傍探索を実行
-2. 近傍セルリング（Ring 0→1→2）内のOVERLAPセルを探索
-3. 透明な表面要素はスキップ（粒子は通過するため、救済対象外）
-4. 救済可能な場合は射影、不可能な場合は削除マークして警告ログ
+### 4.2 デバッグフラグ
 
-**関数シグネチャ**:
-```cpp
-// src/move_surf.h
-private:
-  int rescue_inside_particles(std::vector<InsideParticle> &inside_particles,
-                              int &ndeleted_marked);
-```
+| フラグ | 対象 |
+|---|---|
+| `DEBUG_SPARTA_ENGULF` | Phase 0・2（めり込みの検出・補正） |
+| `DEBUG_SPARTA_WALLFRAME` | Phase 1（壁静止系反射） |
+| `DEBUG_SPARTA_SDF` | Phase 3（解析 SDF） |
+| `DEBUG_SPARTA_CCD` | Phase 4（連続衝突判定） |
 
-**実装詳細**:
-```cpp
-// src/move_surf.cpp
-int MoveSurf::rescue_inside_particles(std::vector<InsideParticle> &inside_particles,
-                                      int &ndeleted_marked)
-{
-  // [ADDED] Phase 1: INSIDEセル粒子の救済
-  
-  int nrescued = 0;
-  ndeleted_marked = 0;
-  
-  for (auto &p : inside_particles) {
-    int icell = p.icell;
+集計値の出力はランク0でまとめて行う。粒子ごとのログはデバッグビルドに限る。
 
-    double x_proj[3], norm[3];
-    int isurf;
+### 4.3 既存動作の保持と後方互換
 
-    // 局所リング探索（簡易・高速）:
-    //   Ring 0 = 現在セル, Ring 1 = 面隣接, Ring 2 = さらに外側
-    //   OVERLAPかつ非透明surfaceのみ候補にする
-    const int max_ring = 2;
-    if (find_nearest_surface_in_rings(p.x, icell, max_ring, x_proj, norm, isurf)) {
-      // 救済成功: 射影して速度更新
-      Particle::OnePart *part = &particle->particles[p.particle_index];
-      part->x[0] = x_proj[0];
-      part->x[1] = x_proj[1];
-      part->x[2] = x_proj[2];
-      
-      update_reflection_velocity(part, isurf, norm);
-      nrescued++;
-      
-#if DEBUG_SPARTA_SWEEP
-      if (me == 0) {
-        fprintf(screen, "RESCUE: Particle %d rescued from INSIDE cell %d\n",
-                p.particle_index, icell);
-      }
-#endif
-    } else {
-      // 救済失敗: 削除マークして警告
-      Particle::OnePart *part = &particle->particles[p.particle_index];
-      part->icell = -1;  // compress_rebalance()で一括削除
-      ndeleted_marked++;
-      
-      if (me == 0) {
-        error->warning(FLERR, 
-          "Particle in INSIDE cell could not be rescued, deleted");
-      }
-    }
-  }
-  
-  return nrescued;
-}
-```
+- 旧来の動作はキーワードで選べるように残す（例: めり込み処理の既定値は現行と同じ「削除」）
+- 旧来の動作として残すロジックはコメントアウトせずに残し、新しいモードでは迂回する
+- 移動物体がない入力では、改修前と結果がビット一致することを各フェーズで確認する
 
-**補助関数（追加）**:
-```cpp
-// src/move_surf.cpp
-int MoveSurf::find_nearest_surface_in_rings(double *x, int icell, int max_ring,
-                                            double *x_proj, double *norm, int &isurf)
-{
-  Grid::ChildCell *cells = grid->cells;
-  Grid::ChildInfo *cinfo = grid->cinfo;
-  Grid::SplitInfo *sinfo = grid->sinfo;
-  Grid::ParentCell *pcells = grid->pcells;
+### 4.4 Rev2 で追加するルール
 
-  const int nall = grid->nlocal + grid->nghost;
-  if (icell < 0 || icell >= nall) return 0;
+- **黙った削除の禁止**: 粒子を消すときは必ず理由別のカウンタに計上する
+- **相対許容誤差**: 新しい ε は局所セル寸法か要素寸法を基準に定義する
+- **運動学の単一情報源**: 壁速度・回転角は運動学レジストリ（Phase 1）からだけ取得する
+- **回転角の計算**: 加算を重ねず、整数のステップ数から毎回計算する（ドリフト防止）
+- **Kokkos 版**: CPU 版と同じフェーズで対応するか、未対応の間は「Kokkos 実行＋移動物体」をエラーにする
+- **仕様変更の手順**: この計画書にない仕様変更は、先にこの文書を改訂してから実装する
+- **計画書にコードを書かない**: 仕様は数式・手順・インタフェース（入力文法）で記述する
 
-  // subcell -> 親splitセルへ正規化
-  if (cells[icell].nsplit <= 0) {
-    int isplit = cells[icell].isplit;
-    if (isplit < 0) return 0;
-    icell = sinfo[isplit].icell;
-    if (icell < 0 || icell >= nall) return 0;
-  }
+### 4.5 ブランチ運用（案）
 
-  // 訪問管理は「訪問したセルIDのみ」を小さく保持
-  std::vector<int> visited_list;
-  visited_list.reserve(64);
-
-  auto is_visited = [&visited_list](int c) {
-    for (int v : visited_list) if (v == c) return 1;
-    return 0;
-  };
-
-  std::vector<int> frontier, next_frontier;
-  frontier.reserve(32);
-  next_frontier.reserve(64);
-  frontier.push_back(icell);
-  visited_list.push_back(icell);
-
-  const int nface = (dim == 3) ? 6 : 4;
-  const double BIGDIST = 1.0e300;
-  const double eps = 0.25 * grid->cell_epsilon;
-
-  for (int ring = 0; ring <= max_ring && !frontier.empty(); ring++) {
-    double best_d2 = BIGDIST;
-    int best_isurf = -1;
-    double best_proj[3] = {0.0, 0.0, 0.0};
-    double best_norm[3] = {0.0, 0.0, 0.0};
-
-    // このRing内で候補表面を評価
-    for (int c : frontier) {
-      // cinfoはownedセルにしかないためguardする
-      if (c < 0 || c >= grid->nlocal) continue;
-      if (cinfo[c].type != OVERLAP) continue;
-      if (cells[c].nsurf <= 0) continue;
-
-      double cand_proj[3], cand_norm[3];
-      int cand_isurf = -1;
-      if (project_to_nearest_surface(x, c, cand_proj, cand_norm, cand_isurf)) {
-        double dx = x[0] - cand_proj[0];
-        double dy = x[1] - cand_proj[1];
-        double dz = x[2] - cand_proj[2];
-        double d2 = dx*dx + dy*dy + dz*dz;
-        if (d2 < best_d2) {
-          best_d2 = d2;
-          best_isurf = cand_isurf;
-          best_proj[0] = cand_proj[0];
-          best_proj[1] = cand_proj[1];
-          best_proj[2] = cand_proj[2];
-          best_norm[0] = cand_norm[0];
-          best_norm[1] = cand_norm[1];
-          best_norm[2] = cand_norm[2];
-        }
-      }
-    }
-
-    // 近場優先: このRingで見つかったら即採用
-    if (best_isurf >= 0) {
-      isurf = best_isurf;
-      x_proj[0] = best_proj[0];
-      x_proj[1] = best_proj[1];
-      x_proj[2] = best_proj[2];
-      norm[0] = best_norm[0];
-      norm[1] = best_norm[1];
-      norm[2] = best_norm[2];
-      return 1;
-    }
-
-    // 次Ringを構築（面隣接）
-    next_frontier.clear();
-    for (int c : frontier) {
-      for (int iface = 0; iface < nface; iface++) {
-        int nflag = grid->neigh_decode(cells[c].nmask, iface);
-        int j = -1;
-
-        if (nflag == 0 || nflag == 3) {
-          // NCHILD / NPBCHILD: neigh[] は cells index
-          j = static_cast<int>(cells[c].neigh[iface]);
-
-        } else if (nflag == 1 || nflag == 4) {
-          // NPARENT / NPBPARENT: neigh[] は pcells index
-          int ip = static_cast<int>(cells[c].neigh[iface]);
-          if (ip < 0 || ip >= grid->nparent) continue;
-          Grid::ParentCell *pc = &pcells[ip];
-
-          // face外側へ少し出したprobe点で子セルindexを解決
-          double probe[3];
-          probe[0] = 0.5 * (cells[c].lo[0] + cells[c].hi[0]);
-          probe[1] = 0.5 * (cells[c].lo[1] + cells[c].hi[1]);
-          probe[2] = 0.5 * (cells[c].lo[2] + cells[c].hi[2]);
-          if (iface == 0) probe[0] = cells[c].lo[0] - eps;
-          else if (iface == 1) probe[0] = cells[c].hi[0] + eps;
-          else if (iface == 2) probe[1] = cells[c].lo[1] - eps;
-          else if (iface == 3) probe[1] = cells[c].hi[1] + eps;
-          else if (iface == 4) probe[2] = cells[c].lo[2] - eps;
-          else if (iface == 5) probe[2] = cells[c].hi[2] + eps;
-
-          j = grid->id_find_child(pc->id, cells[c].level, pc->lo, pc->hi, probe);
-        } else {
-          // NUNKNOWN / NPBUNKNOWN / NBOUND は探索しない
-          continue;
-        }
-
-        if (j < 0 || j >= nall) continue;
-
-        // subcellなら親splitセルへ正規化
-        if (cells[j].nsplit <= 0) {
-          int jsplit = cells[j].isplit;
-          if (jsplit < 0) continue;
-          j = sinfo[jsplit].icell;
-          if (j < 0 || j >= nall) continue;
-        }
-
-        if (!is_visited(j)) {
-          visited_list.push_back(j);
-          next_frontier.push_back(j);
-        }
-      }
-    }
-
-    frontier.swap(next_frontier);
-  }
-
-  return 0;
-}
-```
+`phase0-detection` → `phase1-wallframe` → `phase2-engulf` → `phase3-sdf` → `phase4-ccd` → `phase5-hpc`。各フェーズは前フェーズの完了基準を満たしてから分岐する。
 
 ---
 
-#### [ ] タスク 1.5: `remove_particles()`の改修
+## 5. Phase 0: 計測・診断基盤（力学は変えない）
 
-**ファイル**: `src/move_surf.cpp`
+### 5.1 目的
 
-**変更内容**:
-1. 既存の削除ロジックをコメントアウト（後方互換性のため）
-2. 新しい押し出し処理を実装
-3. フラグで切り替え可能に
+現行実装の問題の大きさを定量化し、以降のフェーズの比較基準を作る。粒子の運動や乱数列は一切変えない。
 
-**実装詳細**:
-```cpp
-// src/move_surf.cpp:819-885
-bigint MoveSurf::remove_particles()
-{
-  // [MODIFIED] Phase 1: 削除から押し出し処理に変更
-  
-  // [REMOVED] Phase 1: 既存の削除ロジック（コメントアウトで保持）
-  /*
-  int isurf,nsurf;
-  surfint *csurfs;
-  // ... 既存コード ...
-  */
-  
-  // [ADDED] Phase 1: 新しい押し出し処理
-  int delflag = 0;
-  int nlocal_old = particle->nlocal;
-  int sweep_mode = 1;  // 0=削除モード（旧）, 1=押し出しモード（新）
-  
-  if (sweep_mode == 0) {
-    // 旧モード: 削除処理（既存コードを実行）
-    // ...
-  } else {
-    // 新モード: 押し出し処理
-    std::vector<InsideParticle> inside_particles = detect_inside_particles();
-    std::vector<InsideParticle> rescue_targets;
-    rescue_targets.reserve(inside_particles.size());
-    
-    int nswept = 0;
-    int nrescued = 0;
-    int ndeleted = 0;
-    
-    for (auto &p : inside_particles) {
-      Particle::OnePart *part = &particle->particles[p.particle_index];
-      
-      double x_proj[3], norm[3];
-      int isurf;
-      
-      if (project_to_nearest_surface(part->x, p.icell, x_proj, norm, isurf)) {
-        // 射影成功: 位置と速度を更新
-        part->x[0] = x_proj[0];
-        part->x[1] = x_proj[1];
-        part->x[2] = x_proj[2];
-        
-        update_reflection_velocity(part, isurf, norm);
-        nswept++;
-      } else {
-        // 射影失敗: 一旦キューへ積んでまとめて救済
-        rescue_targets.push_back(p);
-      }
-    }
+### 5.2 タスク
 
-    if (!rescue_targets.empty()) {
-      int ndeleted_marked = 0;
-      nrescued = rescue_inside_particles(rescue_targets, ndeleted_marked);
-      ndeleted += ndeleted_marked;
-      if (ndeleted_marked > 0) delflag = 1;
-    }
-    
-    // 統計情報を出力
-    if (me == 0) {
-      if (screen) {
-        fprintf(screen, "SWEEP: %d particles swept, %d rescued, %d deleted\n",
-                nswept, nrescued, ndeleted);
-      }
-    }
-  }
-  
-  // 粒子の再圧縮
-  if (delflag) particle->compress_rebalance();
-  
-  // 削除数を返す（後方互換性）
-  bigint delta = nlocal_old - particle->nlocal;
-  bigint ndeleted_total;
-  MPI_Allreduce(&delta, &ndeleted_total, 1, MPI_SPARTA_BIGINT, MPI_SUM, world);
-  return ndeleted_total;
-}
+- [ ] **0.1 壁内粒子の幾何判定（診断専用）**
+  - 実行位置: `fix move/surf` が表面を移動・再カットした後、`remove_particles()` を呼ぶ前
+  - 対象: 移動した要素を含むセルと、INSIDE セルの粒子
+  - 判定: INSIDE セルは全数を壁内とする。OVERLAP セルは既存の `Grid::point_outside_surfs()` と `Grid::outside_surfs()`（レイの交差回数の偶奇）で判定する
+  - 交点がエッジや頂点に乗る曖昧なケースは、別の参照点で判定し直す。それでも結果が割れる粒子は「不定」として別に数える
+- [ ] **0.2 相対法線速度による分類**
+  - 壁内粒子ごとに最寄り要素の法線と壁速度を求め、`w_n = (v − u_w)·n` を計算する
+  - 壁速度は `fix move/surf` の指定値から求める（rotate なら ω = θ/(N_large·Δt)）
+  - `w_n < 0`（相対運動で壁に入った＝真のめり込み）と `w_n ≥ 0`（整合しない状態）に分類する
+- [ ] **0.3 理論値との比較**
+  - 要素ごとに `Ṅ_eng = n_local·(u_w·n)⁺·A_elem` を計算し、全体の和と検出値の比を出力する
+  - `n_local` は要素に隣接する流体セルの数密度とする
+- [ ] **0.4 質量損失の理由別集計**
+  - セル単位の削除数（既存の `ndeleted`）、幾何的な壁内粒子数、`nstuck` を、出力のたびに取得できるよう `fix move/surf` の出力ベクトルにまとめる
+- [ ] **0.5 ベースライン試験の整備と実行**
+  - T1・T2・T3（[11章](#11-検証計画)）の入力を作り、現行実装で実行する
+  - 粒子数の時間変化、実効付着確率 α_eff、面圧の誤差を記録する（改修後の比較基準として保存）
+- [ ] **0.6 ファセット品質チェックツール**
+  - 入力形状（表面ファイル）について、矢高と、ロータ1回転の複数角度での最小クリアランスを計算する前処理ツールを `tools/` 配下に作る（Python）
+
+### 5.3 変更対象
+
+- `src/move_surf.cpp` / `src/move_surf.h`: 診断用の検出関数を追加（`remove_particles()` 本体は変更しない）
+- `src/fix_move_surf.cpp` / `src/fix_move_surf.h`: 出力ベクトルの拡張
+- 検証用入力: 新規ディレクトリ（例: `examples/roots_verify/`）
+- `tools/`: ファセット品質チェックツール
+
+### 5.4 完了基準
+
+- T1・T2（N_every = 1）で、`w_n < 0` の検出数が理論値と統計誤差内（目安 ±5%）で一致する
+- 実効付着確率の実測値が min(1, 2/N_every) のオーダーであることを確認し、ベースライン報告にまとめる
+- 診断を有効にしても、粒子の軌跡が改修前とビット一致する（診断は乱数を消費せず、粒子を並べ替えない）
+
+### 5.5 リスク
+
+- 偶奇判定の誤り: 「不定」を別に数えることで、検出数の過大評価を避ける
+- 診断のコスト: 判定の実行間隔を指定できるようにする
+
+---
+
+## 6. Phase 1: 剛体運動学と壁静止系反射
+
+### 6.1 目的
+
+壁速度（法線成分を含む）を反射に正しく伝える。めり込み処理はまだ変えない。
+
+### 6.2 タスク
+
+- [ ] **1.1 運動学レジストリ（新規 fix、仮称 `fix surf/body`）**
+  - 物体ごとに、表面グループ、回転中心・回転軸、角速度（まず一定値）、初期位相、並進速度、形状を動かすかどうか（yes/no）を保持する
+  - 回転角は `θ(t) = θ₀ + ω·(step − step₀)·Δt` を整数ステップ数から計算する
+  - 「形状を動かさない物体」は、同心円筒のように回転しても形状が変わらない場合に使う（既存 `rotate` の用途を置き換える）
+- [ ] **1.2 表面要素から物体への対応表**
+  - 表面の custom 整数属性（`Surf::add_custom`）かグループマスクから、要素ごとの物体番号を引けるようにする
+  - 1要素は高々1物体に属する（重複はエラー）
+- [ ] **1.3 形状移動の一本化**
+  - `fix move/surf` の回転量を運動学レジストリの ω から導くか、`fix move/surf` がレジストリを参照するようにする
+  - 二重入力をなくし、不一致はエラーにする
+- [ ] **1.4 ガリレイ変換ラッパー**
+  - 位置: [update.cpp:910-937](src/update.cpp#L910-L937) の表面衝突処理
+  - 手順: 集計用の入射状態（`iorig`、実験室系）を保存 → 物体の `u_w(x_c)` を計算 → 速度から減算 → 既存の `collide()` を呼ぶ → 元の粒子と生成粒子に `u_w` を加算 → 集計（実験室系）
+  - 静止物体（ケーシング）は `u_w = 0` なので変換を省略する（追加コストなし）
+- [ ] **1.5 初期化時の整合チェック**
+  - 移動物体の要素に、`piston`、または `translate`/`rotate` 付きの `diffuse`・`cll` が割り当てられていたらエラーにする
+- [ ] **1.6 CLL `partial` の数値ガード**
+  - [surf_collide_cll.cpp:294](src/surf_collide_cll.cpp#L294) の `acos` の引数を [−1, 1] に収め、相対速度 `w` がほぼ0の場合を扱う（壁静止系では壁と共に動く気体で起きやすくなるため）
+- [ ] **1.7 Kokkos 版**
+  - [KOKKOS/update_kokkos.cpp](src/KOKKOS/update_kokkos.cpp) の同等箇所に同じ変換を入れる。未対応の間は「Kokkos 実行＋移動物体」をエラーにする
+- [ ] **1.8 エネルギー集計の文書化**
+  - `compute surf` の `ke`/`etot` は実験室系で「熱＋壁がした仕事」になることを明記する（壁静止系の熱流束の出力は Phase 5）
+
+### 6.3 変更対象
+
+- 新規: 運動学レジストリの fix（仮称 `fix_surf_body.cpp` / `fix_surf_body.h`）
+- `src/update.cpp`、`src/KOKKOS/update_kokkos.cpp`: ラッパー
+- `src/fix_move_surf.cpp`: 回転量の一本化
+- `src/surf_collide_cll.cpp`: 数値ガードのみ
+- `doc/`: 新 fix と制約の文書
+
+### 6.4 入力文法（案）
+
+```text
+fix  ID  surf/body  group-ID  rotate Px Py Pz  Ax Ay Az  omega  [phase θ0]  [geometry yes|no]
+fix  ID  surf/body  group-ID  translate Vx Vy Vz  [geometry yes|no]
 ```
 
+名称とキーワードは未確定（[12章](#12-未決事項着手前に決めること)）。
+
+### 6.5 完了基準
+
+- T0（1粒子試験）に合格する
+  - 鏡面反射で、前進壁に追い越される粒子が `v_n' = 2u_n − v_n` になる
+  - 拡散反射の反射速度の平均が `u_w + n√(πkT_w/2m)` に統計誤差内で一致する
+  - CLL の核に壁静止系の入射速度が入る
+- T4（同心円筒クエット、形状を動かさない物体）で、既存 `rotate` による結果と統計誤差内で一致する
+- 移動物体がない入力で、結果が改修前とビット一致する
+
+### 6.6 リスク
+
+- `iorig` の座標系を取り違えると、力の集計が壊れる → T0 で力の符号と大きさを確認する
+- 衝突ごとの追加コスト → 物体番号の参照は O(1)、静止物体は変換を省略する
+
 ---
 
-#### [ ] タスク 1.6: ヘッダーファイルの更新
+## 7. Phase 2: めり込み補正（最小改修版・2D 検証用）
 
-**ファイル**: `src/move_surf.h`
+### 7.1 目的
 
-**追加内容**:
-1. 新しい構造体・関数の宣言
-2. メンバ変数の追加
+削除をやめ、めり込み粒子を「実際に起きたはずの壁衝突」として処理する。形状の移動は `fix move/surf`（N_every = 1）のままにするので、再カットのコストは残る（本番性能は Phase 4 で得る）。
 
-**実装詳細**:
-```cpp
-// src/move_surf.h
-#include <vector>
-#include "particle.h"
+### 7.2 実行タイミングの変更
 
-class MoveSurf : protected Pointers {
-  // ... 既存のpublicメンバ ...
-  
- private:
-  // ... 既存のprivateメンバ ...
-  
-  // [ADDED] Phase 1: 押し出し処理用のメンバ
-  struct InsideParticle {
-    int particle_index;
-    int icell;
-    double x[3];
-  };
-  
-  double epsilon_sweep;  // 安全マージン（デフォルト: 1e-6）
-  
-  std::vector<InsideParticle> detect_inside_particles();
-  int project_to_nearest_surface(double *x, int icell, double *x_projected,
-                                 double *norm, int &isurf);
-  void update_reflection_velocity(Particle::OnePart *p, int isurf, double *norm);
-  int rescue_inside_particles(std::vector<InsideParticle> &inside_particles,
-                              int &ndeleted_marked);
-  int find_nearest_surface_in_rings(double *x, int icell, int max_ring,
-                                    double *x_proj, double *norm, int &isurf);
-};
+壁のジャンプとめり込み補正を、`end_of_step`（衝突計算・ソートの後）から `start_of_step`（粒子移動の前）へ移す。1ステップの流れは次のとおり。
+
+1. 粒子のソート
+2. 壁を tⁿ の位置へ移動し、再カット
+3. めり込み粒子の検出（Phase 0 の判定）
+4. 補正（7.3–7.6 の階層）。補正した粒子は「残り飛行時間つき」で、このステップの通常の粒子移動に渡す
+5. 通常の粒子移動 → 衝突 → 出力
+
+`fix ave/grid` など他の fix との実行順序が変わる点は文書化する。
+
+### 7.3 検出
+
+- Phase 0 の判定を使う。対象は、移動した要素を含むセルと INSIDE セル
+- 静止物体（ケーシング）内の粒子も検出対象にする（多重反射後のすり抜け監視）
+
+### 7.4 補正（主方式）: 遡及衝突（鏡像法）
+
+めり込み粒子ごとに、最寄り要素について次を計算する。
+
+```text
+d    = 壁内の深さ（最寄り要素の平面までの距離）
+w    = v − u_w(x)                  （壁静止系の速度）
+w_n  = w · n
+成立条件:  w_n < 0  かつ  d ≤ |w_n|·Δt
+τ_b  = d / |w_n|                   （壁を横切ってからの経過時間、0 < τ_b ≤ Δt）
+x_c  = x − w·τ_b                    （横断点。面上に合わせる）
+t_c  = tⁿ − τ_b                     （衝突時刻）
 ```
 
-**注意事項**:
-- `find_nearest_surface_in_rings()` は透明な表面要素をスキップする必要がある
-- 探索対象はOVERLAPセル内の非透明な表面要素のみとする
-- `icell` が子セルの場合は親splitセルへ正規化してからリング探索を開始する
-- 探索範囲は固定上限（例: `max_ring = 2`）で打ち切り、計算コストを抑える
-- `std::vector` と `Particle::OnePart` を使うため、`move_surf.h` に `#include <vector>` と `#include "particle.h"` を追加する
-- `epsilon_sweep` はコンストラクタで初期値（例: `1.0e-6`）を設定する
+- 反射はラッパー（Phase 1）経由で、`u_w(x_c, t_c)` を使って行う
+- 粒子を `x_c` に置き、除外面を当該要素とし、残り飛行時間 `τ_b + Δt` で通常の粒子移動に再投入する
+  - 既存の「表面反応で生成した粒子を、残り時間と除外面つきで動かす経路」（[update.cpp:506-512](src/update.cpp#L506-L512)、[update.cpp:924-931](src/update.cpp#L924-L931)）と同じ形にする。これで、セルをまたぐ移動・MPI 移送・ケーシングとの多重反射が既存の仕組みで処理される
+  - ステップ開始時点の粒子にこのフラグを立てて問題ないか（他の処理がフラグを書き換えないか）を実装前に確認する
+- 平面・並進・鏡面反射の組み合わせでは、結果は鏡像 `x' = x + 2d n`、`v' = v − 2((v − u_w)·n) n` と一致する（厳密）
+- 成立条件の判定を先に行うので、`w_n ≈ 0` による除算は起きない
+- 補正による衝突も `compute surf` の集計対象にする（トルク・面圧の過小評価を防ぐ）
 
----
+### 7.5 補正（拡散壁の代替）: 統計的再放出
 
-## Phase 2: 壁速度補正の運用整理
+- 遡及衝突の成立条件を満たさず、当該要素が完全拡散壁（acc = 1）の場合に使う
+- 要素上の最寄り点から、速度 `u_w + c_r`（c_r は壁静止系の半空間フラックス・マクスウェル分布、壁温度）で放出する
+- 放出時刻はステップ内で一様にとり、残り飛行時間つきで通常の粒子移動に再投入する
+- 除去した粒子の運動量・エネルギーは入射フラックスとして計上する
+- 全物体が完全拡散壁の場合は、遡及衝突の代わりにこちらを主方式として選べるようにする（最も安価で頑健）
 
-### 2.1 概要
+### 7.6 退避: 最近傍射影（Rev1 方式を修正）
 
-押し出し反射時の速度補正は、`update_reflection_velocity()` 内で呼ぶ
-`surf->sc[isc]->collide()` の既存ロジックに委譲する。  
-`MoveSurf`/`FixMoveSurf` 側で独自の壁速度（角速度・並進速度）を算出して加算する処理は導入しない。
+上記がすべて成立しない場合に使う。Rev1 の設計から次の点を改める。
 
-### 2.2 実装タスク
+- ε は相対値にする: `ε = ε_rel·Δx_local`（既定 ε_rel = 10⁻⁶）。Rev1 の絶対値 1e-6 は SI 単位で 1 μm ≈ 0.2h であり使えない
+- 三角形上の最近点を正しく求める（無限平面への垂線の足ではなく、辺・頂点の領域に収める）
+- 射影先が他物体（ケーシング・相手ロータ）の内部なら、法線方向のギャップ中点に置く
+- 探索はゴーストセルを含め、探索半径に上限（2セル）を設ける。所有ランク外への移動は通常の粒子移動の移送処理に任せる
+- 速度はラッパー経由の壁静止系反射で決め、残り飛行時間 Δt で再投入する
 
-#### [ ] タスク 2.1: `surf_collide` 側補正の利用方針を固定
+### 7.7 最終手段: 計上付き削除
 
-**ファイル**: `src/move_surf.cpp`, `src/surf_collide_*.cpp`
+退避にも失敗した粒子だけを削除する。件数を理由別に計上し、警告は集約して出力する。
 
-**実装内容**:
-1. `update_reflection_velocity()` では `surf->sc[isc]->collide()` のみを呼び、追加加算しない
-2. 壁速度補正は `surf_collide` モデル側（例: diffuse/cll の `translate/rotate`）に委譲する
-3. 二重加算回避のため、MoveSurf/FixMoveSurf 側に独自補正コードを追加しない
+### 7.8 後方互換（入力文法案）
 
----
-
-#### [ ] タスク 2.2: `update_reflection_velocity()` の責務を固定
-
-**ファイル**: `src/move_surf.cpp`
-
-**変更箇所**: `update_reflection_velocity()`
-
-**実装内容**:
-1. `surf->sc[isc]->collide()` を唯一の反射・補正入口として使用
-2. MoveSurf 側での `p->v` 追加加算を行わない
-3. 反射モデル切替は仮想関数ディスパッチに委譲
-
-**実装詳細**:
-```cpp
-// src/move_surf.cpp
-void MoveSurf::update_reflection_velocity(Particle::OnePart *p, int isurf,
-                                          double *norm)
-{
-  // ... Phase 1の実装と同一 ...
-  // surf->sc[isc]->collide() が速度補正を含む反射を実施する。
-}
+```text
+fix  ID  move/surf  group-ID  Nevery  Nlarge  style args  engulf  delete|retro|reemit
 ```
 
----
+- `delete`（既定）: 現行どおり、移動要素を含むセルの全粒子を削除する（旧ロジックをそのまま使う）
+- `retro`: 7.4 → 7.5（拡散壁のみ）→ 7.6 → 7.7
+- `reemit`: 7.5 → 7.6 → 7.7（全物体が完全拡散壁の場合のみ許可）
 
-#### [ ] タスク 2.3: `fix move/surf` での運用確認
+### 7.9 変更対象
 
-**ファイル**: `src/fix_move_surf.cpp`
+- `src/move_surf.cpp` / `src/move_surf.h`: 検出・補正の本体（新規ファイルに分けるかは実装時に決める）
+- `src/fix_move_surf.cpp` / `src/fix_move_surf.h`: `start_of_step` 対応、`engulf` キーワード、出力
+- `src/update.cpp`: 再投入経路の確認と、必要なら最小限の修正
+- 表面集計: 補正衝突の集計呼び出し
 
-**変更内容**:
-1. `fix move/surf` の押し出し反射でも `update_reflection_velocity()` を経由する
-2. 追加の kinematics 受け渡しは実装しない
-3. 必要な補正は `surf_collide` 入力設定（`translate/rotate`）側で管理する
+### 7.10 完了基準
 
-**実装詳細**:
-```cpp
-// src/fix_move_surf.cpp
-// [MODIFIED] Phase 2: fix move/surfでも同じ反射経路を使用
-// end_of_step() -> movesurf->remove_particles()
-// -> update_reflection_velocity() -> surf->sc[isc]->collide()
-```
+- T2（閉じた箱のピストン）で粒子数が厳密に保存され（削除 0）、無衝突ピストンの面圧が解析式と統計誤差内で一致する
+- **T3（剛体回転する非円形容器）に合格する（受け入れ試験）**: 速度場 `u = ω×r`、密度 `n ∝ exp(mω²r²/2kT)`、温度一様が統計誤差内
+- T1（回転楕円）で削除 0、退避の発生率が補正件数の 10⁻⁴ 未満（目安）
+- 補正件数が理由別に出力される
 
-**注意**:
-- 押し出し反射で壁速度補正を使う場合は、対象 `surf_collide` モデルに
-  `translate/rotate` を設定する。
-- MoveSurf/FixMoveSurf 側には独自速度補正を実装しない（責務分離）。
+### 7.11 リスク
 
----
-
-## 実装チェックリスト
-
-### Phase 1: 粒子押し出し
-
-- [ ] **タスク 1.1**: 壁内粒子の検知機能の実装
-- [ ] **タスク 1.2**: 最近傍点への射影処理の実装
-- [ ] **タスク 1.3**: 反射速度の更新処理
-- [ ] **タスク 1.4**: INSIDEセル粒子の救済処理
-- [ ] **タスク 1.5**: `remove_particles()`の改修
-- [ ] **タスク 1.6**: ヘッダーファイルの更新
-
-### Phase 2: 壁速度補正の運用整理
-
-- [ ] **タスク 2.1**: `surf_collide` 側補正の利用方針を固定
-- [ ] **タスク 2.2**: `update_reflection_velocity()` の責務を固定
-- [ ] **タスク 2.3**: `fix move/surf` での運用確認
-
-### 共通タスク
-
-- [ ] **デバッグフラグの追加**: `DEBUG_SPARTA_SWEEP`, `DEBUG_SPARTA_ROTATE`
-- [ ] **コンパイル確認**: エラー・警告なし
-- [ ] **単体テスト**: 各関数の動作確認
-- [ ] **統合テスト**: 実際のシミュレーションでの動作確認
+- 偶奇判定の誤りで誤った補正をかける → 「不定」は退避へ回し、件数を監視する
+- 同じ粒子が連続ステップでめり込みを繰り返す → 再めり込み率を監視指標にする
+- `start_of_step` への移行で他の fix との順序依存が生じる → 文書化し、T1–T3 で確認する
 
 ---
 
-## デバッグとテスト
+## 8. Phase 3: 形状表現（解析 SDF とファセット品質）
 
-### デバッグフラグ
+### 8.1 目的
 
-```cpp
-// src/move_surf.cpp の先頭に追加
-#define DEBUG_SPARTA_SWEEP 0   // Phase 1用
-#define DEBUG_SPARTA_ROTATE 0  // Phase 2用
-```
+μm クリアランスでのファセット誤差を無くし、壁内判定を O(1) かつ頑健にする。
 
-### テストケース
+### 8.2 タスク
 
-#### テスト 1: 単純な壁移動
-- 2D/3Dの単純な形状（矩形/直方体）を移動
-- 壁内粒子が正しく押し出されることを確認
+- [ ] **3.1 ファセット品質基準**
+  - 矢高を `RΔφ²/8 ≤ 0.01h` に抑える（h = 5 μm、R = 75 mm なら Δφ ≤ 0.13°、1周約2800分割）
+  - ロータ1回転の全角度で「ファセット化後の最小隙間 ≥ 0.9h」を、0.6 のツールで確認する。満たさない形状はエラーにする
+- [ ] **3.2 解析 SDF**
+  - ロータ翼形（円弧・インボリュート・サイクロイド等の区分曲線）の、物体座標系での符号付き距離関数 `Φ_k(X)` を実装する（流体側が正、`|∇Φ| = 1`）
+  - 3D の直線翼は、2D 翼形と端面の組み合わせとして解析的に表す
+  - 評価は純粋な関数として書く（Phase 5 の GPU 化を見越す）
+- [ ] **3.3 役割分担（二重表現）**
+  - SDF: 壁内判定、射影（`x − Φ∇Φ`）、Phase 4 の衝突判定
+  - ファセット: `compute surf` の集計、可視化、セル体積の計算
+  - 衝突点から要素番号への対応付け（最寄りファセット）を用意する
+  - 同じ粒子の衝突判定に両者を混用しない
+- [ ] **3.4 特異点の扱い**
+  - 折れ目など `∇Φ` が定まらない点では、最寄りファセットの法線を代わりに使う
+  - 正規化の前に `|∇Φ|` の下限を確認する（ゼロ除算の防止）
+- [ ] **3.5 整合チェック**
+  - ファセット頂点で `|Φ|` が許容値以下であることを確認する
+  - Phase 2 の検出を SDF に切り替え、T1–T3 を再実行する
 
-#### テスト 2: 回転壁
-- 回転する壁で粒子が正しく反射されることを確認
-- `surf_collide` の `translate/rotate` 設定時に期待どおりの反射速度になることを確認
+翼形の定義が CAD しかない場合は、表面近傍だけを持つ適応サンプリング SDF（解像度は h より十分細かく、補間誤差には安全係数を掛ける）に切り替える（[12章](#12-未決事項着手前に決めること)）。
 
-#### テスト 3: INSIDEセル粒子
-- INSIDEセル内の粒子が救済または削除されることを確認
-- 警告ログが正しく出力されることを確認
+### 8.3 変更対象
 
-### ログ出力例
+- 新規: SDF モジュール（仮称 `surf_sdf.cpp` / `surf_sdf.h`）
+- `src/move_surf.cpp`: 検出・射影を SDF に切り替え
+- `tools/`: 翼形パラメータから SDF 定義とファセットを生成するツール
 
-```
-SWEEP: 100 particles detected inside walls
-SWEEP: 95 particles swept, 3 rescued, 2 deleted
-ROTATE: Reflection handled by surf_collide translate/rotate setting
-```
+### 8.4 完了基準
 
----
-
-## 注意事項
-
-1. **既存コードの保持**: 削除したコードはコメントアウトで保持し、後方互換性を維持
-2. **エラーハンドリング**: 射影失敗時は適切にエラー処理を行う
-3. **並列処理**: MPI環境での動作を確認（各プロセスで独立に処理）
-4. **パフォーマンス**: 近傍探索の効率化を検討（必要に応じて）
-
----
-
-## 参照ファイル一覧
-
-### 主要ファイル
-- `src/move_surf.cpp` - メイン実装
-- `src/move_surf.h` - ヘッダー
-- `src/fix_move_surf.cpp` - fix move/surf実装
-
-### 関連ファイル
-- `src/surf_collide_diffuse.cpp` - Diffuse反射モデル
-- `src/surf_collide_specular.cpp` - Specular反射モデル
-- `src/surf_collide_cll.cpp` - CLL反射モデル
-- `src/grid_surf.cpp` - グリッド-表面関連処理
-- `src/geometry.cpp` - 幾何学計算（距離計算等）
-- `src/update.cpp` - 粒子更新処理
+- SDF とファセットの偶奇判定が、矢高の帯の外で一致する
+- T1–T3 の結果が Phase 2 と統計誤差内で一致する
+- 壁内判定のコスト削減量を計測して記録する
 
 ---
 
-**最終更新**: 2024年  
-**ステータス**: 実装前
+## 9. Phase 4: 連続衝突判定と再カットの局所化（性能）
+
+### 9.1 目的
+
+めり込みを発生させない予防層を入れ、毎ステップの全域再カットを無くす。
+
+### 9.2 タスク
+
+- [ ] **4.1 物体座標系での連続衝突判定**
+  - 移動物体の要素について、粒子の移動線分の両端をそれぞれの時刻の物体座標系へ変換する: `X_s = Q_kᵀ(t_s)(x_s − c_k)`、`X_e = Q_kᵀ(t_e)(x_e − c_k)`
+  - 変換後の線分に既存の静的な交差判定を使い、衝突時刻 `t_c`、衝突点 `x_c`、法線 `n = Q_k(t_c)N`、壁速度 `u_w(x_c, t_c)` を得る
+  - 相対軌道を直線で近似する誤差は `(2ω|v| + ω²R)Δt²/8 ≈ 5×10⁻¹³ m` で無視できる
+  - SDF を採用する場合は、保守的前進 `τ ← τ + g/L`（`L = |v| + |ω|·r_max`）で最初の根を飛び越さずに探し、根の近くで Newton 法か二分法に切り替える。反復回数に上限を設け、一定距離以内に入ったら衝突とみなす
+- [ ] **4.2 候補要素の探索**
+  - 物体座標系で一度だけ構築する静的な探索構造（BVH またはビン格子）を用意する
+  - 格子セルの外接箱を物体座標系へ写して候補を引く。形状は静的なまま全ランクに複製する（通信不要）
+- [ ] **4.3 再カットの局所化**
+  - ロータ周辺の環状領域のセルだけ、流体体積を N_v ステップごとに局所更新する（誤差は `A·u_n·Δt·N_v` 以下で有界）
+  - 分割セルを作らないための格子制約: ロータ近傍で `Δx < min(h, 翼先端の曲率半径)/2`、各セルを横切る物体は1つだけ。違反セルを検出して警告する
+- [ ] **4.4 既存の衝突規則の見直し**
+  - 直前に当たった面を除外する規則（[update.cpp:786](src/update.cpp#L786)）の回転系での扱い
+  - `MAXSTUCK`（狭まる楔）の発生件数の監視
+- [ ] **4.5 安全網**
+  - Phase 2・3 の検出を毎ステップ（または N ステップごと）実行し、件数がほぼ0であることを監視する
+
+### 9.3 変更対象
+
+- `src/update.cpp`（粒子移動の本体）、`src/KOKKOS/update_kokkos.cpp`
+- 格子関連（局所的な体積更新）
+- `src/fix_move_surf.cpp`（全域再カット経路の迂回）
+
+### 9.4 完了基準
+
+- T1–T5 の結果が Phase 2・3 と統計誤差内で一致する
+- 安全網の検出件数がほぼ0（目安: 衝突 10⁷ 回に1回未満）
+- 移動物体ありの1ステップの計算時間が、静止形状の同条件の 1.5 倍以内（目標値は要合意）
+
+### 9.5 リスク
+
+- 最も手が入るフェーズ（テンプレート化された中心ループと Kokkos 版の二重保守）
+- 候補要素の取りこぼしはすり抜けに直結する → 安全網で必ず検出する
+- 共有エッジでの絶対許容誤差（`EPSSQNEG`）による漏れ → 相対許容誤差への置き換えを検討する
+
+---
+
+## 10. Phase 5: HPC・本番化
+
+- [ ] **5.1 Kokkos**: ラッパー・連続衝突判定・SDF をデバイス関数にする。`FixMoveSurfKokkos` のホスト同期経路は使わない
+- [ ] **5.2 負荷分散**: ポケットの移動で粒子分布が周期的に変わるので、`fix balance` を計算時間の重みで、回転周期より十分短い間隔で実行する
+- [ ] **5.3 統計処理**
+  - 回転角ビンごとの位相平均サンプリング
+  - 拡散壁の力の推定に、反射運動量の期待値 `m(u_w + n√(πkT_w/2m))` を使う分散低減
+  - 独立したアンサンブル実行
+- [ ] **5.4 エネルギー収支の常時監視**: 軸動力 `P = −ω_k·T_k`（`T_k = Σ(x_c − c_k) × (−Δp)`）と、気体のエンタルピー増加＋壁への熱流束の周期平均を比較する
+- [ ] **5.5 壁静止系の熱流束の出力**: `ΔE_lab − u_w·Δp`
+- [ ] **5.6 実形状への展開**: 2D → 3D 直線翼（端面クリアランスを含む）
+
+**完了基準**: 排気速度・圧縮比を信頼区間付きで算出できる。強スケーリング・弱スケーリングを測定して記録する。
+
+---
+
+## 11. 検証計画
+
+| ID | 内容 | 基準（解析解など） | 使うフェーズ |
+|---|---|---|---|
+| T0 | 1粒子の反射試験 | 追い越し粒子で `v_n' = 2u_n − v_n`。拡散反射の平均 `u_w + n√(πkT_w/2m)`。CLL の核への入力が壁静止系 | 1 |
+| T1 | 回転楕円（[examples/surf/in.surf.rotate](examples/surf/in.surf.rotate) を、全面反射壁の閉じた箱・流入なしに改変） | 粒子数一定。めり込み検出数 = `n·(u_w·n)⁺·A` | 0, 2, 3, 4 |
+| T2 | ピストン: (a) 閉じた箱 (b) 無衝突の長い箱（鏡面、反射波が戻る前の時間） | (a) 粒子数一定 (b) 面圧 `p/p₀ = (1+2s²)(1+erf s) + (2s/√π)·e^(−s²)`、`s = U/c_mp` | 0, 2 |
+| T3 | **剛体回転する非円形容器**（拡散壁、壁温度一様）＝受け入れ試験 | `u = ω×r`、`n ∝ exp(mω²r²/2kT)`、温度一様 | 0（不合格を記録）, 2, 3, 4 |
+| T4 | 同心円筒クエット（形状を動かさない物体） | 既存 `rotate` の結果と一致 | 1 |
+| T5 | μm の平行ギャップ（片側が接線方向に移動） | 無衝突極限で `τ = ρc̄ΔU/4`（完全拡散壁）。すり抜け 0。多重反射を含む | 2, 4 |
+| T6 | エネルギー収支 | T3 の平衡状態で正味の仕事 ≈ 0。T5 の定常状態で軸動力 = 壁への熱流束 | 1 以降 |
+
+各試験の結果（粒子数の時間変化、誤差、補正件数の内訳）は、フェーズごとに記録して比較できるように残す。
+
+---
+
+## 12. 未決事項（着手前に決めること）
+
+| # | 事項 | 影響するフェーズ |
+|---|---|---|
+| 1 | 代表クリアランス h と目標精度（本計画は h = 5 μm と仮定） | 全体（格子・時間刻み・ファセット基準） |
+| 2 | ガス種・温度・運転圧力範囲 | 全体（Kn 域、衝突モデル） |
+| 3 | ロータ翼形の定義（解析式が手に入るか、CAD しかないか） | Phase 3 の方式（解析 SDF かサンプリング SDF か） |
+| 4 | 2D 先行か、最初から 3D か（端面クリアランスの扱い） | Phase 3–5 |
+| 5 | 壁の反射モデル（完全拡散か、適応係数の値） | Phase 2 の `reemit` モードの適用可否 |
+| 6 | 計算環境（CPU の MPI のみか、GPU/Kokkos が必須か） | Phase 1・4 の Kokkos 対応の優先度 |
+| 7 | 新しい fix とキーワードの名称（`fix surf/body`、`engulf` は仮称） | Phase 1・2 |
+| 8 | Phase 4 の衝突判定を陽的要素で行うか、SDF で行うか | Phase 4 |
+
+---
+
+## 13. Rev1 からの変更点
+
+| 項目 | Rev1 | Rev2 | 理由 |
+|---|---|---|---|
+| 壁速度の伝達 | `surf_collide` の `translate/rotate` に任せる | 呼び出し側でガリレイ変換し、移動物体では `translate/rotate` を禁止 | `rotate` は法線成分を捨て、鏡面側は実験室系のまま（P6・P7） |
+| めり込みの主方式 | 最近傍射影 | 遡及衝突（鏡像法）。射影は退避用 | 射影は飛行時間を失い、角部・薄ギャップで誤る |
+| ε | 絶対値 1e-6 | 局所セル寸法基準の相対値 | SI 単位で 1 μm ≈ 0.2h |
+| 三角形への射影 | 無限平面への垂線の足 | 三角形上の最近点 | 足が三角形の外に出る |
+| 最近傍の探索範囲 | 自ランク所有のセルのみ | ゴーストセルを含め、移送は粒子移動処理に任せる | サブドメイン境界付近で黙った削除が起きる |
+| 反射の呼び出し | `collide()` を `dt_dummy = 0` で直接呼ぶ | 残り飛行時間つきで通常の粒子移動に再投入 | 飛行時間と多重反射の処理が失われる |
+| 実行タイミング | `end_of_step`（衝突計算の後） | `start_of_step`（粒子移動の前） | 補正後の粒子を同じステップの移動で整合的に扱うため |
+| 性能 | 毎ステップの全域再カットを許容 | Phase 4 で局所化 | 1回転 4–8×10⁶ ステップと両立しない |
+| 運動学の入力 | `fix move/surf` と `rotate` に二重入力 | 運動学レジストリに一本化 | 取り違えを検出できない |
+| 形状の精度 | 規定なし | 矢高基準と解析 SDF | 1° ファセットで矢高 ≈ h |
+| 新規ファイル | なし | 必要に応じて追加（運動学 fix、SDF モジュール） | 責務を分けて保守しやすくするため |
+| 検証 | 定性的な動作確認 | 解析解のある T0–T6 | バイアスの有無を定量的に判定するため |
+
+---
+
+## 14. 参照ファイル一覧
+
+### 時間進行・粒子移動
+- [src/update.cpp](src/update.cpp) — `Update::run()`、`Update::move()`、`split2d/3d()`
+- [src/KOKKOS/update_kokkos.cpp](src/KOKKOS/update_kokkos.cpp) — Kokkos 版の粒子移動
+- [src/modify.cpp](src/modify.cpp) — `start_of_step()` / `end_of_step()` の呼び出し
+- [src/finish.cpp](src/finish.cpp) — `nstuck` の報告
+
+### 壁移動
+- [src/move_surf.cpp](src/move_surf.cpp) — 回転・並進、`remove_particles()`
+- [src/fix_move_surf.cpp](src/fix_move_surf.cpp) — 時間ごとの移動と再カット
+- [src/KOKKOS/fix_move_surf_kokkos.cpp](src/KOKKOS/fix_move_surf_kokkos.cpp) — ホスト同期
+
+### 反射モデル
+- [src/surf_collide.h](src/surf_collide.h) — `collide()` のインタフェース
+- [src/surf_collide_specular.cpp](src/surf_collide_specular.cpp)、[src/surf_collide_diffuse.cpp](src/surf_collide_diffuse.cpp)、[src/surf_collide_cll.cpp](src/surf_collide_cll.cpp)
+- [src/surf_collide_piston.cpp](src/surf_collide_piston.cpp) — Bird の移動壁式（参考）
+- [doc/surf_collide.txt](doc/surf_collide.txt)、[doc/move_surf.txt](doc/move_surf.txt)、[doc/fix_move_surf.txt](doc/fix_move_surf.txt)
+
+### 幾何・格子
+- [src/geometry.cpp](src/geometry.cpp) — `line_tri_intersect()`、`line_line_intersect()`、許容誤差
+- [src/grid_surf.cpp](src/grid_surf.cpp) — `point_outside_surfs()`、`outside_surfs()`、分割セルの粒子割り当て
+- [src/surf.h](src/surf.h) — `Line`/`Tri`、custom 属性
+
+### 集計
+- [src/compute_surf.cpp](src/compute_surf.cpp) — 面圧・せん断・エネルギー集計（実験室系）
+
+### 入力例
+- [examples/surf/in.surf.rotate](examples/surf/in.surf.rotate) — 回転楕円（T1 の元）
+
+---
+
+**最終更新**: 2026年09月29日
+**ステータス**: 設計段階（Phase 0 着手前）
