@@ -33,6 +33,10 @@ class MoveSurf : protected Pointers {
   int mode;                 // 0 = move_surf command, 1 = fix move/surf command
   int groupbit;             // FixMoveSurf sets surf group
 
+  // [ADDED] Phase 1: 壁内粒子の扱い（engulf キーワード）
+  int engulfflag;           // 0 = delete all particles in cells with moved surfs
+                            // 1 = push particles inside surfs back into flow
+
   // hash for surface element points
 
 #include "hash_options.h"
@@ -69,6 +73,31 @@ class MoveSurf : protected Pointers {
   int *readindex;
   double **oldcoord,**newcoord;
 
+  // [ADDED] Phase 1: 壁内粒子の集計（全プロセス合計値）
+
+  enum{EG_INSIDE,EG_PUSHED,EG_MIGRATED,EG_REFLECT,EG_KEEPVEL,
+       EG_DEL_NOSURF,EG_DEL_DEEP,EG_DEL_NOCELL,EG_DEL_BLOCKED,
+       EG_DEL_DESTROYED,NEGCOUNT};
+
+  bigint eglast[NEGCOUNT];         // tallies for last surf move
+  bigint egtotal[NEGCOUNT];        // cumulative tallies
+  int warnflag;                    // 1 if deletion warning already issued
+
+  int npush_migrate;               // # of particles pushed into cells of
+  int maxpush_migrate;             //   other procs, sent after all cells
+  int *push_migrate;               //   are processed
+
+  // [ADDED] Phase 2: 移動表面の剛体運動学（壁速度）
+
+  double frac_prev;                // fraction of full move at previous move
+  bigint step_prev;                // timestep of previous move
+  int velflag;                     // 1 once wall velocity is known
+  int registered;                  // 1 if in list of moving surf groups
+  double omega;                    // angular velocity around rvec (rad/time)
+  double vtrans[3];                // translational velocity (distance/time)
+  double dmove;                    // max displacement of any point in last move
+  double rmaxaxis;                 // max distance of group points from axis
+
   void readfile();
   void update_points(double);
   void translate_2d(double, Surf::Line *);
@@ -79,6 +108,28 @@ class MoveSurf : protected Pointers {
   void connect_2d_post();
   void connect_3d_pre();
   void connect_3d_post();
+
+  // [ADDED] Phase 1: 幾何学的退避と遅延削除
+
+  int push_out_cell(int, bigint *);
+  int push_out_one(int, int, int, bigint *);
+  int nearest_surf(int, double *, int, double *, int &, double &);
+  double closest_point_surf(int, double *, double *);
+  double bbox_distsq(int, double *);
+  int particle_inside(int, double *, double *);
+  int point_in_flow(int, double *);
+  int locate_cell(int, double *);
+  double cell_size(int);
+  int receive_pushed(bigint *);
+  void engulf_tally(bigint *);
+
+  // [ADDED] Phase 2: ガリレイ変換による壁速度の伝達
+
+  void update_kinematics(double);
+  double max_axis_distance();
+  void own_velocity(double *, double *);
+  void wall_velocity(int, double *, double *);
+  int reflect_wall_frame(int, int, double *, int, bigint *);
 };
 
 }
@@ -93,5 +144,24 @@ E: Illegal ... command
 Self-explanatory.  Check the input script syntax and compare to the
 documentation for the command.  You can use -echo screen as a
 command-line option when running SPARTA to see the offending line.
+
+E: Move surf engulf project requires explicit surfs
+
+The push-out of particles inside surfs uses explicit line/tri elements.
+
+E: Move surf engulf project is not yet supported with Kokkos
+
+The push-out calls surface collision models on the host.
+
+W: Move surf engulf project deleted particles which could not be pushed out of surfs
+
+Some particles inside surfs had no surf element, were deeper than the
+surf move distance, or could not be placed in the flow of any grid cell.
+They were deleted and are counted in the fix move/surf output.
+
+E: Move surf engulf project: surface collision model created a particle
+
+The delayed collision of a pushed-out particle is done without surface
+chemistry, so no collision model should create a particle.
 
 */
