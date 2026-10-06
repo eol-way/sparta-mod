@@ -1,0 +1,31 @@
+# safety guard: surf_collide piston on moving surfs with wallvel yes
+#   must stop with an error (piston applies its own wall motion)
+# usage: mpirun -np 4 spa_mpi -in in.guard_piston
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 1 -0.5 0.5
+create_grid         200 20 1
+balance_grid        rcb cell
+
+global              nrho 1.0e18 fnum 5.0e14
+
+species             air.species N
+mixture             gas N vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.piston
+
+surf_collide        1 piston 100.0
+surf_modify         all collide 1
+
+timestep            2.0e-5
+
+create_particles    gas n 0
+
+fix                 10 move/surf all 1 400 trans 0.8 0 0 engulf project wallvel yes
+
+run                 10

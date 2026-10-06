@@ -100,6 +100,7 @@ MoveSurf::MoveSurf(SPARTA *sparta) : Pointers(sparta)
   // [ADDED] Phase 2: 壁速度の初期化
   // fix move/surf creates this class on the step its motion starts
 
+  nlarge = 0;
   frac_prev = 0.0;
   step_prev = update->ntimestep;
   velflag = registered = 0;
@@ -1752,8 +1753,10 @@ void MoveSurf::engulf_tally(bigint *egcount)
    [ADDED] Phase 2: 壁速度の算出（真の速度 = 変位 / 経過時間）
    called at start of every surf move with fraction of full move
    fix move/surf: fraction = (step - step0) / Nlarge, so
-     omega = theta * dfrac / (dstep * update->dt)
-     vtrans = delta * dfrac / (dstep * update->dt)
+     omega = theta / (Nlarge * update->dt) via compute_velocity()
+     fallback if Nlarge is not known:
+       omega = theta * dfrac / (dstep * update->dt)
+       vtrans = delta * dfrac / (dstep * update->dt)
    move_surf command moves instantaneously and has no wall velocity
    also set dmove = max displacement of any moved point in this move
 ------------------------------------------------------------------------- */
@@ -1781,8 +1784,12 @@ void MoveSurf::update_kinematics(double fraction)
   //   registered = 1;
   // }
 
+  // [MODIFIED] Phase 2: Nlarge が既知なら解析的な速度（timestep 変更にも追従）
+  // measured velocity from the last move is only a fallback
+
   bigint dstep = update->ntimestep - step_prev;
-  if (dstep > 0) {
+  if (nlarge > 0) compute_velocity();
+  else if (dstep > 0) {
     double dtime = dstep * update->dt;
     if (action == ROTATE) omega = theta*dfrac / dtime;
     else if (action == TRANSLATE) {
@@ -1802,6 +1809,52 @@ void MoveSurf::update_kinematics(double fraction)
             "dmove %g\n",update->ntimestep,omega,
             vtrans[0],vtrans[1],vtrans[2],dmove);
 #endif
+}
+
+/* ----------------------------------------------------------------------
+   [ADDED] Phase 2: fix move/surf の Nlarge を受け取り壁速度を確定
+   called by fix move/surf after process_args()
+------------------------------------------------------------------------- */
+
+void MoveSurf::set_nlarge(int n)
+{
+  nlarge = n;
+  compute_velocity();
+}
+
+/* ----------------------------------------------------------------------
+   [ADDED] Phase 2: run 毎の初期化
+   called by FixMoveSurf::init() before Update::setup() of every run,
+     timestep may have been changed since the fix was defined
+------------------------------------------------------------------------- */
+
+void MoveSurf::init()
+{
+  compute_velocity();
+}
+
+/* ----------------------------------------------------------------------
+   [ADDED] Phase 2: 解析的な壁速度
+   fix move/surf moves a fraction 1/Nlarge of the full move per step, so
+     omega = theta / (Nlarge * dt), vtrans = delta / (Nlarge * dt)
+   valid from the 1st step, also between the discrete surf moves
+------------------------------------------------------------------------- */
+
+void MoveSurf::compute_velocity()
+{
+  if (mode != 1 || nlarge <= 0 || update->dt <= 0.0) return;
+
+  double rate = 1.0 / (nlarge * update->dt);
+
+  if (action == ROTATE) {
+    omega = theta * rate;
+    velflag = 1;
+  } else if (action == TRANSLATE) {
+    vtrans[0] = delta[0] * rate;
+    vtrans[1] = delta[1] * rate;
+    vtrans[2] = delta[2] * rate;
+    velflag = 1;
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -1907,9 +1960,8 @@ int MoveSurf::wall_velocity_any(SPARTA *spa, int isurf, double *x, double *u)
    [ADDED] Phase 2: run 開始時の壁速度の有効判定（Update::setup() から）
    return 1 if any fix move/surf of this SPARTA instance uses wallvel yes
    error if one of its surfs uses surf_collide piston, which applies
-     its own moving-wall reflection
-   surf_collide translate/rotate keywords cannot be detected here,
-     they must not be used on these surfs (wall velocity added twice)
+     its own moving-wall reflection, or a surf_collide model with
+     translate/rotate keywords, which would add the wall velocity twice
 ------------------------------------------------------------------------- */
 
 int MoveSurf::wallvel_setup(SPARTA *spa)
@@ -1938,6 +1990,12 @@ int MoveSurf::wallvel_setup(SPARTA *spa)
       if (strcmp(s->sc[isc]->style,"piston") == 0)
         spa->error->all(FLERR,
                         "Move surf wallvel cannot be used with surf_collide piston");
+
+      // [ADDED] Phase 2: translate/rotate 併用は速度の二重加算になるので停止
+
+      if (s->sc[isc]->has_added_velocity())
+        spa->error->all(FLERR,"Move surf wallvel cannot be used with "
+                        "surf_collide translate or rotate keywords");
     }
   }
 

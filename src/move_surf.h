@@ -60,7 +60,11 @@ class MoveSurf : protected Pointers {
   bigint remove_particles();
 
   // [ADDED] Phase 2: 移動壁の壁速度（Update::move() の衝突から参照）
+  // fix move/surf calls set_nlarge() once and init() before every run,
+  //   so the wall velocity is known from the 1st step of a run
 
+  void set_nlarge(int);
+  void init();
   static int wallvel_setup(class SPARTA *);
   static int wall_velocity_any(class SPARTA *, int, double *, double *);
 
@@ -98,6 +102,7 @@ class MoveSurf : protected Pointers {
                                    //   are done in the frame of the moving
                                    //   wall, its surf_collide models must
                                    //   not use translate/rotate keywords
+  int nlarge;                      // fix move/surf Nlarge, 0 if not known
   double frac_prev;                // fraction of full move at previous move
   bigint step_prev;                // timestep of previous move
   int velflag;                     // 1 once wall velocity is known
@@ -135,6 +140,7 @@ class MoveSurf : protected Pointers {
   // [ADDED] Phase 2: ガリレイ変換による壁速度の伝達
 
   void update_kinematics(double);
+  void compute_velocity();
   double max_axis_distance();
   void own_velocity(double *, double *);
   void wall_velocity(int, double *, double *);
@@ -176,6 +182,12 @@ particles inside surfs are pushed out instead of deleted.
 E: Move surf wallvel cannot be used with surf_collide piston
 
 The piston model applies its own moving-wall reflection.
+
+E: Move surf wallvel cannot be used with surf_collide translate or rotate keywords
+
+The surf_collide model adds its own surface velocity, so the wall
+velocity would be added twice.  Remove the translate or rotate keyword
+or use wallvel no.
 
 E: Move surf engulf project: surface collision model created a particle
 

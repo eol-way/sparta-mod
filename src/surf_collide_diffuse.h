@@ -36,6 +36,7 @@ class SurfCollideDiffuse : public SurfCollide {
                              int, double *, int, int &);
   void wrapper(Particle::OnePart *, double *, int *, double*);
   void flags_and_coeffs(int *, double *);
+  bool has_added_velocity() { return trflag != 0; }   // [ADDED] Phase 2
 
  protected:
   double acc;                // surface accomodation coeff

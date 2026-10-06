@@ -4,7 +4,9 @@
 #   p/p0 = (1+2s^2)(1+erf s) + 2s/sqrt(pi) exp(-s^2), s = U/c_mp
 #   valid until molecules reflected by the piston return from x = 10
 # usage: mpirun -np 4 spa_mpi -in in.piston -var engulf delete|project \
-#          -var wallvel yes|no [-var dx 0.0]
+#          -var wallvel yes|no [-var dx 0.0] [-var nevery N -var nrun M]
+# startup check: -var nevery 20 -var nrun 40 -var fnum 1.0e13 averages the
+#   first 40 steps only, the wall velocity must be right from step 1
 
 seed                12345
 dimension           2
@@ -16,7 +18,12 @@ create_box          0 10 0 1 -0.5 0.5
 create_grid         200 20 1
 balance_grid        rcb cell
 
-global              nrho 1.0e18 fnum 5.0e13
+variable            dx index 0.8
+variable            nevery index 1
+variable            nrun index 400
+variable            fnum index 5.0e13
+
+global              nrho 1.0e18 fnum ${fnum}
 
 species             air.species N
 mixture             gas N vstream 0.0 0.0 0.0 temp 300.0
@@ -33,16 +40,14 @@ create_particles    gas n 0
 # piston moves dx in 400 steps, dx = 0.8 is 100 m/s
 # dx = 0.0 is a static wall, calibration of p0 (-var dx 0.0)
 
-variable            dx index 0.8
-
-fix                 10 move/surf all 1 400 trans ${dx} 0 0 &
+fix                 10 move/surf all ${nevery} 400 trans ${dx} 0 0 &
                     engulf ${engulf} wallvel ${wallvel}
 
 compute             1 surf all gas press
-fix                 2 ave/surf all 1 400 400 c_1[1]
+fix                 2 ave/surf all 1 ${nrun} ${nrun} c_1[1]
 compute             3 reduce ave f_2
 
-stats               400
+stats               ${nrun}
 stats_style         step np nscoll f_10 c_3
 
-run                 400
+run                 ${nrun}

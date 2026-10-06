@@ -42,6 +42,12 @@ class SurfCollide : protected Pointers {
   virtual void wrapper(Particle::OnePart *, double *, int *, double *) {}
   virtual void flags_and_coeffs(int *, double *) {}
 
+  // [ADDED] Phase 2: モデル自身が壁速度を加えるか（translate/rotate キーワード）
+  // fix move/surf wallvel yes adds the wall velocity to every collision,
+  //   so a model which adds its own surface velocity must not be used
+
+  virtual bool has_added_velocity() { return false; }
+
   virtual void dynamic();
   void tally_reset();
   void tally_update();

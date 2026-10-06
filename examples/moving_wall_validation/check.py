@@ -278,6 +278,15 @@ def check_piston(out, tol=0.03):
            f"p/p0 = {r:.4f}, free-molecular exact {exact:.4f} "
            f"(err {100.0 * (r / exact - 1.0):+.2f}%)")
 
+    # nevery 20, average over the first 40 steps only:
+    #   wall velocity must be known from step 1, not only after the 1st move
+
+    r = piston_ratio(os.path.join(out, "log.piston.startup"))
+    status = "PASS" if abs(r / exact - 1.0) < tol else "FAIL"
+    report(status, "piston startup (nevery 20)",
+           f"p/p0 over steps 1-40 = {r:.4f}, exact {exact:.4f} "
+           f"(err {100.0 * (r / exact - 1.0):+.2f}%)")
+
     r = piston_ratio(os.path.join(out, "log.piston.project_no"))
     report("INFO", "piston wallvel no",
            f"p/p0 = {r:.4f} (no wall velocity in collisions)")
@@ -318,6 +327,28 @@ def check_rotating_box(out, tol=0.03):
            f"gas rotation {slope:.2f} 1/s (ratio {slope / omega:.4f})")
 
 
+def check_guards(out):
+    """invalid model combinations must stop with error->all()"""
+    msg_tr = ("Move surf wallvel cannot be used with surf_collide "
+              "translate or rotate keywords")
+    msg_pi = "Move surf wallvel cannot be used with surf_collide piston"
+    cases = [("guard diffuse rotate", "log.guard_rotate.yes.screen", msg_tr),
+             ("guard cll translate", "log.guard_cll_translate.screen", msg_tr),
+             ("guard piston", "log.guard_piston.screen", msg_pi)]
+    for name, screen, msg in cases:
+        text = open(os.path.join(out, screen)).read()
+        if "ERROR" in text and msg in text:
+            report("PASS", name, "stopped with: ERROR: " + msg)
+        else:
+            report("FAIL", name, "expected error not found in out/" + screen)
+
+    log = os.path.join(out, "log.guard_rotate.no")
+    if "Loop time" in open(log).read():
+        report("PASS", "guard rotate + wallvel no", "runs (allowed)")
+    else:
+        report("FAIL", "guard rotate + wallvel no", "did not complete")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -330,7 +361,8 @@ def main():
               lambda: check_two_rotors(out),
               lambda: check_move_surf_cmd(out),
               lambda: check_piston(out),
-              lambda: check_rotating_box(out)]
+              lambda: check_rotating_box(out),
+              lambda: check_guards(out)]
     for check in checks:
         try:
             check()

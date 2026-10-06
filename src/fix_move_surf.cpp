@@ -72,6 +72,10 @@ FixMoveSurf::FixMoveSurf(SPARTA *sparta, int narg, char **arg) :
 
   movesurf->process_args(narg-5,&arg[5]);
 
+  // [ADDED] Phase 2: Nlarge から壁速度を確定（1ステップ目から有効）
+
+  movesurf->set_nlarge(nlarge);
+
   dim = domain->dimension;
   ntimestep_original = update->ntimestep;
 
@@ -121,6 +125,10 @@ void FixMoveSurf::init()
 {
   if (nsurf != surf->nsurf)
     error->all(FLERR,"Number of surface elements changed in fix move/surf");
+
+  // [ADDED] Phase 2: timestep 変更に備えて run 毎に壁速度を再計算
+
+  movesurf->init();
 
   // NOTE: first read of file ?
   //       what about on successive run

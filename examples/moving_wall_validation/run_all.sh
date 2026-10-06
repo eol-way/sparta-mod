@@ -38,6 +38,19 @@ run() {
   fi
 }
 
+# runs which must stop with an error, check.py looks for the message
+
+run_expect_error() {
+  local log=$1
+  shift
+  printf "running %-34s" "$log"
+  if $MPIRUN "$SPA" -log "$log" "$@" > "$log.screen" 2>&1; then
+    echo "done"
+  else
+    echo "stopped (error expected)"
+  fi
+}
+
 run log.ellipse2d.delete       -in in.ellipse2d -var mode delete
 run log.ellipse2d.project      -in in.ellipse2d -var mode project
 run log.ellipsoid3d.delete     -in in.ellipsoid3d -var mode delete
@@ -49,8 +62,14 @@ run log.piston.static          -in in.piston -var engulf project -var wallvel ye
 run log.piston.project_yes     -in in.piston -var engulf project -var wallvel yes
 run log.piston.project_no      -in in.piston -var engulf project -var wallvel no
 run log.piston.delete_no       -in in.piston -var engulf delete -var wallvel no
+run log.piston.startup         -in in.piston -var engulf project -var wallvel yes \
+                               -var nevery 20 -var nrun 40 -var fnum 5.0e12
 run log.rotating_box.project_yes -in in.rotating_box -var engulf project -var wallvel yes
 run log.rotating_box.project_no  -in in.rotating_box -var engulf project -var wallvel no
+run log.guard_rotate.no        -in in.guard_rotate -var wallvel no
+run_expect_error log.guard_rotate.yes   -in in.guard_rotate -var wallvel yes
+run_expect_error log.guard_cll_translate -in in.guard_cll_translate
+run_expect_error log.guard_piston       -in in.guard_piston
 
 echo
 python3 "$HERE/check.py" "$OUT" "$NP"
