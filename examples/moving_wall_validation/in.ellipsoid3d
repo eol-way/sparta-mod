@@ -36,4 +36,17 @@ stats_style         step cpu np nscoll f_10
 dump                1 particle all 250 dump.ellipsoid3d.${mode}.*.txt id x y z
 dump_modify         1 format float %20.15g
 
+# animation output for make_gifs.py (generate_all_gifs.sh), off by default
+# -var anim N dumps every N steps: particle sample and surf shape
+
+variable            anim index 0
+# slab |z| < 0.2 around the mid plane
+if                  "${anim} > 0" then &
+                    "dump a1 particle all ${anim} anim.ellipsoid3d.${mode}.particle.*.txt id x y z" &
+                    "dump_modify a1 thresh z > -0.2" &
+                    "dump_modify a1 thresh z < 0.2" &
+                    "dump_modify a1 format float %20.15g" &
+                    "dump a2 surf all ${anim} anim.ellipsoid3d.${mode}.surf.*.txt id v1x v1y v1z v2x v2y v2z v3x v3y v3z" &
+                    "dump_modify a2 format float %20.15g"
+
 run                 500

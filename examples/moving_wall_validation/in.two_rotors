@@ -42,4 +42,16 @@ stats_style         step cpu np nscoll f_10 f_11
 dump                1 particle all 500 dump.two_rotors.*.txt id x y
 dump_modify         1 format float %20.15g
 
+# animation output for make_gifs.py (generate_all_gifs.sh), off by default
+# -var anim N dumps every N steps: particle sample and surf shape
+
+variable            anim index 0
+# particle IDs are uniform in 1..2^31, id < 2^31/10 keeps a fixed 10% sample
+if                  "${anim} > 0" then &
+                    "dump a1 particle all ${anim} anim.two_rotors.particle.*.txt id x y" &
+                    "dump_modify a1 thresh id < 214748365" &
+                    "dump_modify a1 format float %20.15g" &
+                    "dump a2 surf all ${anim} anim.two_rotors.surf.*.txt id v1x v1y v2x v2y" &
+                    "dump_modify a2 format float %20.15g"
+
 run                 1000

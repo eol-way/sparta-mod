@@ -46,3 +46,27 @@ fix 10 move/surf rotor 1 2000 rotate 360 0 0 1 5 5 0 engulf project
 - **反射モデルの組み合わせ**：`wallvel yes` の表面に `surf_collide piston`、または `translate` / `rotate` キーワード付きの `diffuse` / `cll` を割り当てると、run 開始時にエラーで停止します（壁速度の二重加算を防ぐため。判定は `SurfCollide::has_added_velocity()`）。
 - **未対応**：Kokkos と implicit surf では `engulf project` をエラーにしています。
 - **詳細な計数**：`src/move_surf.cpp` を `-DDEBUG_SPARTA_ENGULF=1 -DDEBUG_SPARTA_WALLFRAME=1` 付きでコンパイルすると、ステップごとに壁内粒子・退避・壁静止系での反射の件数と、ω・最大移動量が表示されます。
+
+## GIF アニメーション
+
+```
+./generate_all_gifs.sh [SPARTA実行ファイル] [プロセス数]
+```
+
+入力を `-var anim N`（N ステップごとに粒子のサンプルと壁形状を dump）で実行し、`make_gifs.py` が `gifs/` に GIF を書き出します。作業ファイルは `anim_out/`（git 管理外）に置かれ、所要時間は 4 プロセスで約 30 秒です。`-var anim` を付けない通常実行では dump は出力されず、回帰テストの結果は変わりません。
+
+Python には numpy・matplotlib・Pillow が必要です。`PYTHON` 環境変数、`./.venv/bin/python`、`python3` の順に探し、無ければ次の導入手順を表示して停止します。
+
+```
+python3 -m venv .venv && .venv/bin/pip install matplotlib pillow
+```
+
+| GIF | 内容 |
+|---|---|
+| `gifs/ellipse2d.gif` | 回転楕円。左が従来の `engulf delete`（粒子が消えていく）、右が `engulf project`（粒子数を維持） |
+| `gifs/two_rotors.gif` | 逆回転する2本のロータ（`engulf project`） |
+| `gifs/ellipsoid3d.gif` | 回転する3D楕円体。中央の層 \|z\| < 0.2 の粒子と z = 0 断面。左が `delete`、右が `project` |
+| `gifs/piston.gif` | 進入するピストン。上3段が `wallvel yes` / `wallvel no` / `delete` の粒子、下段が密度分布 n/n₀（`wallvel yes` ではピストン前方に圧縮領域ができる） |
+| `gifs/rotating_box.gif` | 回転する正方形容器。下段は平均周方向速度 u_θ(r)。`wallvel yes` は剛体回転 ωr に到達、`wallvel no` はほぼ静止のまま |
+
+壁の内側（固体側）にある粒子は赤で大きく描き、各フレームの見出しに件数（inside wall）を表示します。固体側の判定は、2D では法線の向き（SPARTA の法線 = ẑ×(v2−v1) が気体側）を考慮した巻き数、3D では凸多面体の面判定で行います。dump は全精度（%20.15g）で出力するので、壁から 10⁻⁶ セル幅だけ離して置いた粒子が丸めで内側と判定されることはありません。現在の結果では、全 GIF の全フレームで 0 件です。

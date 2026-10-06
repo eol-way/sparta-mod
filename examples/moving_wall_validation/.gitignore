@@ -1,2 +1,4 @@
 out/
 __pycache__/
+anim_out/
+.venv/
