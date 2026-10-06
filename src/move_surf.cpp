@@ -89,7 +89,9 @@ MoveSurf::MoveSurf(SPARTA *sparta) : Pointers(sparta)
   // [ADDED] Phase 1: 壁内粒子の扱いと集計の初期化
 
   dim = domain->dimension;
+  mode = 0;
   engulfflag = ENGULF_DELETE;
+  wallvelflag = 0;
   for (int i = 0; i < NEGCOUNT; i++) eglast[i] = egtotal[i] = 0;
   warnflag = 0;
   npush_migrate = maxpush_migrate = 0;
@@ -319,6 +321,7 @@ void MoveSurf::process_args(int narg, char **arg)
 
   connectflag = 0;
   engulfflag = ENGULF_DELETE;          // [ADDED] Phase 1
+  int wallvelset = -1;                 // [ADDED] Phase 2: -1 = not specified
 
   while (iarg < narg) {
     if (strcmp(arg[iarg],"connect") == 0) {
@@ -337,6 +340,16 @@ void MoveSurf::process_args(int narg, char **arg)
       else if (strcmp(arg[iarg+1],"project") == 0) engulfflag = ENGULF_PROJECT;
       else error->all(FLERR,"Illegal move surf command");
       iarg += 2;
+
+    // [ADDED] Phase 2: wallvel yes|no
+    // yes = all collisions with moved surfs use the wall velocity
+
+    } else if (strcmp(arg[iarg],"wallvel") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal move surf command");
+      if (strcmp(arg[iarg+1],"yes") == 0) wallvelset = 1;
+      else if (strcmp(arg[iarg+1],"no") == 0) wallvelset = 0;
+      else error->all(FLERR,"Illegal move surf command");
+      iarg += 2;
     } else error->all(FLERR,"Illegal move surf command");
   }
 
@@ -348,6 +361,21 @@ void MoveSurf::process_args(int narg, char **arg)
     if (sparta->kokkos)
       error->all(FLERR,
                  "Move surf engulf project is not yet supported with Kokkos");
+  }
+
+  // [ADDED] Phase 2: 壁速度の適用条件と移動表面グループ一覧への登録
+  // default = yes for engulf project, no for engulf delete
+  // only fix move/surf (mode = 1) has a wall velocity
+  // Update::setup() checks the list at the start of every run
+
+  if (wallvelset < 0) wallvelflag = (engulfflag == ENGULF_PROJECT) ? 1 : 0;
+  else wallvelflag = wallvelset;
+  if (wallvelflag && engulfflag != ENGULF_PROJECT)
+    error->all(FLERR,"Move surf wallvel yes requires engulf project");
+
+  if (mode == 1 && wallvelflag && !registered) {
+    moving_groups.push_back(this);
+    registered = 1;
   }
 }
 
@@ -1747,10 +1775,11 @@ void MoveSurf::update_kinematics(double fraction)
 
   if (mode != 1) return;
 
-  if (!registered) {
-    moving_groups.push_back(this);
-    registered = 1;
-  }
+  // [REMOVED] Phase 2: 登録は process_args() へ移動（wallvel no のグループは登録しない）
+  // if (!registered) {
+  //   moving_groups.push_back(this);
+  //   registered = 1;
+  // }
 
   bigint dstep = update->ntimestep - step_prev;
   if (dstep > 0) {
@@ -1841,24 +1870,78 @@ void MoveSurf::own_velocity(double *x, double *u)
 /* ----------------------------------------------------------------------
    [ADDED] Phase 2: 表面要素 isurf 上の点 x での壁速度 u
    velocity of the fix move/surf whose group contains the element
-   zero for static surfs
+   zero for static surfs or groups with wallvel no
 ------------------------------------------------------------------------- */
 
 void MoveSurf::wall_velocity(int isurf, double *x, double *u)
 {
-  u[0] = u[1] = u[2] = 0.0;
+  if (!wall_velocity_any(sparta,isurf,x,u)) u[0] = u[1] = u[2] = 0.0;
+}
 
+/* ----------------------------------------------------------------------
+   [ADDED] Phase 2: 壁速度の参照（Update::move() 用の公開インタフェース）
+   spa = SPARTA instance, isurf = surf element, x = point on it
+   return 1 and set u = wall velocity at x if the element belongs to
+     a fix move/surf group with wallvel yes and a known velocity
+   return 0 if element is static, u is then not set
+------------------------------------------------------------------------- */
+
+int MoveSurf::wall_velocity_any(SPARTA *spa, int isurf, double *x, double *u)
+{
   int mask;
-  if (dim == 3) mask = surf->tris[isurf].mask;
-  else mask = surf->lines[isurf].mask;
+  if (spa->domain->dimension == 3) mask = spa->surf->tris[isurf].mask;
+  else mask = spa->surf->lines[isurf].mask;
 
   for (int i = 0; i < (int) moving_groups.size(); i++) {
     MoveSurf *ms = moving_groups[i];
-    if (ms->sparta != sparta || !ms->velflag) continue;
+    if (ms->sparta != spa || !ms->velflag) continue;
     if (!(mask & ms->groupbit)) continue;
     ms->own_velocity(x,u);
-    return;
+    return 1;
   }
+
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   [ADDED] Phase 2: run 開始時の壁速度の有効判定（Update::setup() から）
+   return 1 if any fix move/surf of this SPARTA instance uses wallvel yes
+   error if one of its surfs uses surf_collide piston, which applies
+     its own moving-wall reflection
+   surf_collide translate/rotate keywords cannot be detected here,
+     they must not be used on these surfs (wall velocity added twice)
+------------------------------------------------------------------------- */
+
+int MoveSurf::wallvel_setup(SPARTA *spa)
+{
+  int isc,mask;
+
+  Surf *s = spa->surf;
+  int dimension = spa->domain->dimension;
+  int nsurf = s->nsurf;
+  int flag = 0;
+
+  for (int i = 0; i < (int) moving_groups.size(); i++) {
+    MoveSurf *ms = moving_groups[i];
+    if (ms->sparta != spa) continue;
+    flag = 1;
+
+    for (int j = 0; j < nsurf; j++) {
+      if (dimension == 3) {
+        mask = s->tris[j].mask;
+        isc = s->tris[j].isc;
+      } else {
+        mask = s->lines[j].mask;
+        isc = s->lines[j].isc;
+      }
+      if (!(mask & ms->groupbit) || isc < 0) continue;
+      if (strcmp(s->sc[isc]->style,"piston") == 0)
+        spa->error->all(FLERR,
+                        "Move surf wallvel cannot be used with surf_collide piston");
+    }
+  }
+
+  return flag;
 }
 
 /* ----------------------------------------------------------------------

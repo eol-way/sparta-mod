@@ -121,6 +121,8 @@ class Update : protected Pointers {
   class RanKnuth *random;     // RNG for particle timestep moves
 
   int collide_react;         // 1 if any SurfCollide or React classes defined
+  int wallvelflag;           // [ADDED] Phase 2: 1 if surf collisions with
+                             //   moving surfs use the wall velocity
   int nsc,nsr;               // copy of Collide/React data in Surf class
   class SurfCollide **sc;
   class SurfReact **sr;

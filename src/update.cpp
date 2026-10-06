@@ -30,6 +30,7 @@
 #include "surf.h"
 #include "surf_collide.h"
 #include "surf_react.h"
+#include "move_surf.h"
 #include "input.h"
 #include "output.h"
 #include "geometry.h"
@@ -70,6 +71,7 @@ Update::Update(SPARTA *sparta) : Pointers(sparta)
 
   ntimestep = 0;
   runflag = 0;
+  wallvelflag = 0;                     // [ADDED] Phase 2
   firststep = laststep = 0;
   beginstep = endstep = 0;
   first_update = 0;
@@ -259,6 +261,11 @@ void Update::setup()
   collide_react = collide_react_setup();
   bounce_tally = bounce_setup();
 
+  // [ADDED] Phase 2: fix move/surf ... wallvel yes が1つでもあれば
+  //   移動表面との衝突を壁静止系で行う
+
+  wallvelflag = MoveSurf::wallvel_setup(sparta);
+
   dynamic = 0;
   dynamic_setup();
 
@@ -379,6 +386,9 @@ template < int DIM, int SURF, int OPT > void Update::move()
   Particle::OnePart iorig;
   Particle::OnePart *particles;
   Particle::OnePart *ipart,*jpart;
+  int wallframe;                       // [ADDED] Phase 2
+  double uw[3];                        // [ADDED] Phase 2: wall velocity
+  double *snorm;                       // [ADDED] Phase 2
 
   if (OPT) {
     boxlo = domain->boxlo;
@@ -914,12 +924,43 @@ template < int DIM, int SURF, int OPT > void Update::move()
               if (nsurf_tally)
                 memcpy(&iorig,&particles[i],sizeof(Particle::OnePart));
 
-              if (DIM == 3)
-                jpart = surf->sc[tri->isc]->
-                  collide(ipart,dtremain,minsurf,tri->norm,tri->isr,reaction);
-              if (DIM != 3)
-                jpart = surf->sc[line->isc]->
-                  collide(ipart,dtremain,minsurf,line->norm,line->isr,reaction);
+              // [ADDED] Phase 2: 移動壁との衝突はガリレイ変換で挟む
+              // uw = wall velocity at collision pt x, from fix move/surf
+              // wallframe = 1: w = v - uw, collide(), v' = w' + uw
+              // wallframe = 2: particle does not approach the wall in its
+              //   frame, so the hit surf is the stale position of a
+              //   receding wall, no collision, particle keeps its velocity
+              //   and continues thru the surf (excluded below)
+              // iorig stays in lab frame for surf tallies
+
+              wallframe = 0;
+              if (wallvelflag) {
+                if (DIM == 3) snorm = tri->norm;
+                else snorm = line->norm;
+                if (!((DIM == 3) ? tri->transparent : line->transparent) &&
+                    MoveSurf::wall_velocity_any(sparta,minsurf,x,uw)) {
+                  if ((v[0]-uw[0])*snorm[0] + (v[1]-uw[1])*snorm[1] +
+                      (v[2]-uw[2])*snorm[2] >= 0.0) wallframe = 2;
+                  else {
+                    wallframe = 1;
+                    v[0] -= uw[0];
+                    v[1] -= uw[1];
+                    v[2] -= uw[2];
+                  }
+                }
+              }
+
+              if (wallframe == 2) {
+                jpart = NULL;
+                reaction = 0;
+              } else {
+                if (DIM == 3)
+                  jpart = surf->sc[tri->isc]->
+                    collide(ipart,dtremain,minsurf,tri->norm,tri->isr,reaction);
+                if (DIM != 3)
+                  jpart = surf->sc[line->isc]->
+                    collide(ipart,dtremain,minsurf,line->norm,line->isr,reaction);
+              }
 
               if (jpart) {
                 particles = particle->particles;
@@ -931,7 +972,23 @@ template < int DIM, int SURF, int OPT > void Update::move()
                 pstop++;
               }
 
-              if (nsurf_tally)
+              // [ADDED] Phase 2: 実験室系へ戻す v' = w' + uw
+              // v points to particles[i].v, reset above if list was realloced
+
+              if (wallframe == 1) {
+                v[0] += uw[0];
+                v[1] += uw[1];
+                v[2] += uw[2];
+                if (jpart) {
+                  jpart->v[0] += uw[0];
+                  jpart->v[1] += uw[1];
+                  jpart->v[2] += uw[2];
+                }
+              }
+
+              // [MODIFIED] Phase 2: 通過（wallframe = 2）は衝突として集計しない
+
+              if (nsurf_tally && wallframe != 2)
                 for (m = 0; m < nsurf_tally; m++)
                   slist_active[m]->surf_tally(minsurf,icell,reaction,
                                               &iorig,ipart,jpart);
@@ -948,7 +1005,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
               if (DIM != 2) xnew[2] = x[2] + dtremain*v[2];
 
               exclude = minsurf;
-              nscollide_one++;
+              if (wallframe != 2) nscollide_one++;   // [MODIFIED] Phase 2
 
 #ifdef MOVE_DEBUG
               if (DIM == 3) {

@@ -1,0 +1,13 @@
+piston plate spanning the channel at x = 1, gas on +x side
+
+2 points
+1 lines
+
+Points
+
+1 1.0 0.0
+2 1.0 1.0
+
+Lines
+
+1 2 1

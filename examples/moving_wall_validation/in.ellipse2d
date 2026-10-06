@@ -1,0 +1,43 @@
+# 2d ellipse rotating in a closed box, compare engulf delete vs project
+# checks: particle count conserved (project), no particle inside the surf,
+#         engulf delete identical to unmodified SPARTA (ref/ stats)
+# usage: mpirun -np 4 spa_mpi -in in.ellipse2d -var mode delete|project
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         40 40 1
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.001
+
+species             air.species N O
+mixture             air N O vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.circle origin 5 5 0 scale 0.2 1.2 1
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+timestep            0.0001
+
+create_particles    air n 100000
+
+compute             ke ke/particle
+compute             ket reduce sum c_ke
+
+fix                 10 move/surf all 1 2000 rotate 360 0 0 1 5 5 0 engulf ${mode}
+
+stats               100
+stats_style         step cpu np nscoll f_10 c_ket
+
+dump                1 particle all 250 dump.ellipse2d.${mode}.*.txt id x y
+dump_modify         1 format float %20.15g
+
+run                 1000

@@ -1,0 +1,15 @@
+# stats of in.ellipse2d with legacy deletion, made with UNMODIFIED SPARTA
+# (commit 62cc4756, same input without the engulf keyword),
+# GCC + OpenMPI, mpirun -np 4, CPU column removed
+Step Np Nscoll f_10 c_ket
+0 100000 0 0 6.2098714e-16
+100 69383 16 253 3.7933248e-16
+200 48743 1 153 2.3844788e-16
+300 35654 1 105 1.5861352e-16
+400 26754 4 51 1.0972036e-16
+500 20615 0 64 7.9458289e-17
+600 16350 0 24 6.0288148e-17
+700 13209 0 15 4.7243237e-17
+800 11054 0 14 3.8548299e-17
+900 9462 0 5 3.2829532e-17
+1000 8197 0 22 2.8337158e-17

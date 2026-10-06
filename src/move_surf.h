@@ -59,6 +59,11 @@ class MoveSurf : protected Pointers {
   void move_tris(double, Surf::Tri *);
   bigint remove_particles();
 
+  // [ADDED] Phase 2: 移動壁の壁速度（Update::move() の衝突から参照）
+
+  static int wallvel_setup(class SPARTA *);
+  static int wall_velocity_any(class SPARTA *, int, double *, double *);
+
  private:
   int me,nprocs;
   int dim,action,connectflag;
@@ -89,6 +94,10 @@ class MoveSurf : protected Pointers {
 
   // [ADDED] Phase 2: 移動表面の剛体運動学（壁速度）
 
+  int wallvelflag;                 // 1 if all collisions with this group
+                                   //   are done in the frame of the moving
+                                   //   wall, its surf_collide models must
+                                   //   not use translate/rotate keywords
   double frac_prev;                // fraction of full move at previous move
   bigint step_prev;                // timestep of previous move
   int velflag;                     // 1 once wall velocity is known
@@ -158,6 +167,15 @@ W: Move surf engulf project deleted particles which could not be pushed out of s
 Some particles inside surfs had no surf element, were deeper than the
 surf move distance, or could not be placed in the flow of any grid cell.
 They were deleted and are counted in the fix move/surf output.
+
+E: Move surf wallvel yes requires engulf project
+
+Collisions in the frame of the moving wall are only consistent if
+particles inside surfs are pushed out instead of deleted.
+
+E: Move surf wallvel cannot be used with surf_collide piston
+
+The piston model applies its own moving-wall reflection.
 
 E: Move surf engulf project: surface collision model created a particle
 

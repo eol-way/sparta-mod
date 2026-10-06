@@ -1,0 +1,63 @@
+#!/bin/bash
+# regression tests for moving surfs: engulf project and wallvel
+# usage: ./run_all.sh [path/to/spa_executable] [nprocs]
+#   default executable = ../../src/spa_mpi, default nprocs = 4
+#   set MPIRUN to change the launcher, default "mpirun --oversubscribe -np N"
+# all output goes to ./out, check.py prints PASS/FAIL per check
+# exit code 1 if any check fails or a run aborts
+
+set -u
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+SPA=${1:-$HERE/../../src/spa_mpi}
+NP=${2:-4}
+MPIRUN=${MPIRUN:-mpirun --oversubscribe -np $NP}
+OUT=$HERE/out
+
+if [ ! -x "$SPA" ]; then
+  echo "SPARTA executable not found: $SPA"
+  exit 1
+fi
+SPA=$(cd "$(dirname "$SPA")" && pwd)/$(basename "$SPA")   # runs are in ./out
+
+rm -rf "$OUT"
+mkdir -p "$OUT"
+cp "$HERE"/data.* "$HERE"/air.* "$HERE"/in.* "$OUT"/
+cd "$OUT"
+
+nabort=0
+run() {
+  local log=$1
+  shift
+  printf "running %-34s" "$log"
+  if $MPIRUN "$SPA" -log "$log" "$@" > "$log.screen" 2>&1; then
+    echo "done"
+  else
+    echo "ABORTED (see out/$log.screen)"
+    nabort=$((nabort+1))
+  fi
+}
+
+run log.ellipse2d.delete       -in in.ellipse2d -var mode delete
+run log.ellipse2d.project      -in in.ellipse2d -var mode project
+run log.ellipsoid3d.delete     -in in.ellipsoid3d -var mode delete
+run log.ellipsoid3d.project    -in in.ellipsoid3d -var mode project
+run log.two_rotors             -in in.two_rotors
+run log.move_surf_cmd.delete   -in in.move_surf_cmd -var mode delete
+run log.move_surf_cmd.project  -in in.move_surf_cmd -var mode project
+run log.piston.static          -in in.piston -var engulf project -var wallvel yes -var dx 0.0
+run log.piston.project_yes     -in in.piston -var engulf project -var wallvel yes
+run log.piston.project_no      -in in.piston -var engulf project -var wallvel no
+run log.piston.delete_no       -in in.piston -var engulf delete -var wallvel no
+run log.rotating_box.project_yes -in in.rotating_box -var engulf project -var wallvel yes
+run log.rotating_box.project_no  -in in.rotating_box -var engulf project -var wallvel no
+
+echo
+python3 "$HERE/check.py" "$OUT" "$NP"
+status=$?
+
+if [ $nabort -gt 0 ]; then
+  echo "$nabort runs aborted"
+  exit 1
+fi
+exit $status

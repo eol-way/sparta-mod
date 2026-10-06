@@ -1,0 +1,45 @@
+# 2 counter-rotating ellipses (Roots-like), 2 fix move/surf, engulf project
+# checks: particle count conserved, no particle inside either rotor
+# usage: mpirun -np 4 spa_mpi -in in.two_rotors
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         40 40 1
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.001
+
+species             air.species N O
+mixture             air N O vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.circle origin 5 5 0 scale 0.1 0.4 1 trans -1.5 0 0 &
+                    group rotor1
+read_surf           data.circle origin 5 5 0 scale 0.1 0.4 1 trans 1.5 0 0 &
+                    group rotor2
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+timestep            0.0001
+
+create_particles    air n 100000
+
+fix                 10 move/surf rotor1 1 2000 rotate 360 0 0 1 3.5 5 0 &
+                    engulf project
+fix                 11 move/surf rotor2 1 2000 rotate -360 0 0 1 6.5 5 0 &
+                    engulf project
+
+stats               100
+stats_style         step cpu np nscoll f_10 f_11
+
+dump                1 particle all 500 dump.two_rotors.*.txt id x y
+dump_modify         1 format float %20.15g
+
+run                 1000

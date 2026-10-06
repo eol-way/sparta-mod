@@ -1,0 +1,51 @@
+# square container rotating at omega = 62.83 rad/s, gas inside, diffuse
+#   walls at the gas temperature, collisionless gas initially at rest
+# checks complete momentum transfer of the moving wall:
+#   gas must reach rigid-body rotation u = omega x r
+#   (equilibrium of a gas in a rotating container with diffuse walls)
+# usage: mpirun -np 4 spa_mpi -in in.rotating_box -var engulf delete|project \
+#          -var wallvel yes|no
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         40 40 1
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.0002
+
+species             air.species N
+mixture             gas N vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.square
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+timestep            0.0001
+
+create_particles    gas n 0
+
+# one revolution per 1000 steps
+
+fix                 10 move/surf all 1 1000 rotate 360 0 0 1 5 5 0 &
+                    engulf ${engulf} wallvel ${wallvel}
+
+# average cell velocity over steps 1010-3000, after spin-up
+
+compute             1 grid all gas n u v
+fix                 2 ave/grid all 10 200 3000 c_1[*]
+
+stats               500
+stats_style         step np nscoll f_10
+
+run                 3000
+
+dump                1 grid all 3000 grid.rotating_box.${engulf}_${wallvel}.txt &
+                    id xc yc f_2[*]
+dump_modify         1 format float %20.15g
+run                 0
