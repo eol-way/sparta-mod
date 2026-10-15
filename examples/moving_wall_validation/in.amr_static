@@ -1,0 +1,53 @@
+# rotating ellipse in a closed box on a refined (AMR) grid, engulf project
+# amr = none   : uniform 20x20 grid (control)
+#       surf   : 3 levels of refinement only in cells overlapping the initial
+#                surf, so the rotating surf crosses fine/coarse interfaces
+#       region : 2 levels of refinement in the disk swept by the ellipse
+# checks: particle count conserved, fix grid/check count 0 (every particle
+#   in its grid cell and sub cell, none inside the surf), no particle inside
+#   the surf in the dumps
+# usage: mpirun -np 4 spa_mpi -in in.amr_static -var amr none|surf|region
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         20 20 1
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.001
+
+species             air.species N O
+mixture             air N O vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.circle origin 5 5 0 scale 0.2 1.2 1
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+region              sweep cylinder z 5 5 3.8 INF INF
+if                  "${amr} == surf" then &
+                    "adapt_grid all refine surf all 0.06 iterate 3"
+if                  "${amr} == region" then &
+                    "adapt_grid all refine random 1.0 0.0 region sweep one iterate 2"
+balance_grid        rcb cell
+
+timestep            0.0001
+
+create_particles    air n 100000
+
+fix                 10 move/surf all 1 2000 rotate 360 0 0 1 5 5 0 engulf project
+fix                 gc grid/check 1 silent outside yes
+
+stats               100
+stats_style         step cpu np ngrid maxlevel nscoll f_10 f_gc
+
+dump                1 particle all 250 dump.amr_static.${amr}.*.txt id x y
+dump_modify         1 format float %20.15g
+
+run                 1000

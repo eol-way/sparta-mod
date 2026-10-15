@@ -349,6 +349,68 @@ def check_guards(out):
         report("FAIL", "guard rotate + wallvel no", "did not complete")
 
 
+def check_amr(out):
+    """refined grids: static (none/surf/region), dynamic (fix adapt), 3d"""
+    circle = os.path.join(HERE, "data.circle")
+    cases = [("amr_static none", "log.amr_static.none", "dump.amr_static.none"),
+             ("amr_static surf", "log.amr_static.surf", "dump.amr_static.surf"),
+             ("amr_static region", "log.amr_static.region",
+              "dump.amr_static.region"),
+             ("amr_dynamic surf", "log.amr_dynamic.surf",
+              "dump.amr_dynamic.surf"),
+             ("amr_dynamic particle", "log.amr_dynamic.particle",
+              "dump.amr_dynamic.particle"),
+             ("amr_3d", "log.amr_3d", "dump.amr_3d")]
+    for name, log, dump in cases:
+        rows = stats_rows(os.path.join(out, log))
+        n0, n1 = rows[0]["Np"], rows[-1]["Np"]
+        ndel = sum(r["f_10"] for r in rows)
+        gc = rows[-1]["f_gc"]
+        cells = sorted(set(int(r["Ngrid"]) for r in rows))
+        levels = sorted(set(int(r["Maxlevel"]) for r in rows))
+        ok = n0 == n1 and ndel == 0 and gc == 0
+        report("PASS" if ok else "FAIL", name,
+               f"particles {int(n0)} -> {int(n1)}, deleted {int(ndel)}, "
+               f"grid/check {int(gc)}, cells {cells[0]}-{cells[-1]}, "
+               f"maxlevel {levels[-1]}")
+
+        nin = ntot = 0
+        if name == "amr_3d":
+            pts, tris = read_surf(os.path.join(HERE, "data.sphere"))
+            a, b, c = 1.5, 0.5, 0.8
+            p = {i: (a * v[0], b * v[1], c * v[2]) for i, v in pts.items()}
+            faces = []
+            for i, j, k in tris:
+                e1 = [p[j][m] - p[i][m] for m in range(3)]
+                e2 = [p[k][m] - p[i][m] for m in range(3)]
+                n = [e1[1] * e2[2] - e1[2] * e2[1],
+                     e1[2] * e2[0] - e1[0] * e2[2],
+                     e1[0] * e2[1] - e1[1] * e2[0]]
+                if sum(n[m] * p[i][m] for m in range(3)) < 0.0:
+                    n = [-v for v in n]
+                faces.append((p[i], n))
+        for step, f in dump_steps(os.path.join(out, dump + ".*.txt")):
+            theta = 2.0 * math.pi * step / 2000.0
+            if name == "amr_3d":
+                cs, sn = math.cos(theta), math.sin(theta)
+                for x, y, z in read_dump(f, 3):
+                    ntot += 1
+                    xb, yb = cs * x + sn * y, -sn * x + cs * y
+                    if (xb / a) ** 2 + (yb / b) ** 2 + (z / c) ** 2 >= 1.0:
+                        continue
+                    q = (xb, yb, z)
+                    if all(sum(n[m] * (q[m] - v0[m]) for m in range(3)) < 0.0
+                           for v0, n in faces):
+                        nin += 1
+            else:
+                segs = segments_2d(circle, (5, 5), (0.2, 1.2), (0, 0), (5, 5),
+                                   theta)
+                xy = read_dump(f, 2)
+                ntot += len(xy)
+                nin += sum(inside_2d(x, y, segs) for x, y in xy)
+        check_inside(f"{name} inside", nin, ntot, "surf (all dumps)")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -362,7 +424,8 @@ def main():
               lambda: check_move_surf_cmd(out),
               lambda: check_piston(out),
               lambda: check_rotating_box(out),
-              lambda: check_guards(out)]
+              lambda: check_guards(out),
+              lambda: check_amr(out)]
     for check in checks:
         try:
             check()

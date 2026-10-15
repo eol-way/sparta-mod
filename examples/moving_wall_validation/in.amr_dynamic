@@ -1,0 +1,52 @@
+# rotating ellipse in a closed box with on-the-fly grid adaptation
+#   (fix adapt) and load balancing (fix balance), engulf project
+# adapt = surf     : refine/coarsen cells by surf overlap, the refined
+#                    region follows the rotating surf
+#         particle : refine/coarsen by particle count, as in
+#                    examples/adapt/in.adapt.rotate
+# checks: particle count conserved, fix grid/check count 0, no particle
+#   inside the surf in the dumps
+# usage: mpirun -np 4 spa_mpi -in in.amr_dynamic -var adapt surf|particle
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         20 20 1
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.001
+
+species             air.species N O
+mixture             air N O vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.circle origin 5 5 0 scale 0.2 1.2 1
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+timestep            0.0001
+
+create_particles    air n 100000
+
+fix                 10 move/surf all 1 2000 rotate 360 0 0 1 5 5 0 engulf project
+fix                 gc grid/check 1 silent outside yes
+
+if                  "${adapt} == surf" then &
+                    "fix 2 adapt 50 all refine coarsen surf all 0.07 maxlevel 4"
+if                  "${adapt} == particle" then &
+                    "fix 2 adapt 100 all refine coarsen particle 100 80"
+fix                 5 balance 200 1.1 rcb cell
+
+stats               100
+stats_style         step cpu np ngrid maxlevel nscoll f_10 f_gc
+
+dump                1 particle all 250 dump.amr_dynamic.${adapt}.*.txt id x y
+dump_modify         1 format float %20.15g
+
+run                 1000

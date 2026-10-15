@@ -66,6 +66,12 @@ run log.piston.startup         -in in.piston -var engulf project -var wallvel ye
                                -var nevery 20 -var nrun 40 -var fnum 5.0e12
 run log.rotating_box.project_yes -in in.rotating_box -var engulf project -var wallvel yes
 run log.rotating_box.project_no  -in in.rotating_box -var engulf project -var wallvel no
+run log.amr_static.none        -in in.amr_static -var amr none
+run log.amr_static.surf        -in in.amr_static -var amr surf
+run log.amr_static.region      -in in.amr_static -var amr region
+run log.amr_dynamic.surf       -in in.amr_dynamic -var adapt surf
+run log.amr_dynamic.particle   -in in.amr_dynamic -var adapt particle
+run log.amr_3d                 -in in.amr_3d
 run log.guard_rotate.no        -in in.guard_rotate -var wallvel no
 run_expect_error log.guard_rotate.yes   -in in.guard_rotate -var wallvel yes
 run_expect_error log.guard_cll_translate -in in.guard_cll_translate

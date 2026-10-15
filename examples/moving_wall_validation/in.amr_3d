@@ -1,0 +1,46 @@
+# 3d ellipsoid (tri surf) rotating in a closed box on a refined (AMR) grid
+#   coarse 10x10x10 grid, 2 levels of refinement in cells overlapping the
+#   initial surf, so the rotating surf crosses fine/coarse interfaces
+# checks: particle count conserved, fix grid/check count 0, no particle
+#   inside the surf in the dumps
+# usage: mpirun -np 4 spa_mpi -in in.amr_3d
+
+seed                12345
+dimension           3
+global              gridcut 0.1 comm/sort yes
+
+boundary            r r r
+
+create_box          -2 2 -2 2 -2 2
+create_grid         10 10 10
+balance_grid        rcb cell
+
+global              nrho 1.0 fnum 0.002
+
+species             air.species N O
+mixture             air N O vstream 0.0 0.0 0.0 temp 300.0
+
+read_surf           data.sphere scale 1.5 0.5 0.8
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss air air.vss
+
+adapt_grid          all refine surf all 0.09 iterate 2
+balance_grid        rcb cell
+
+timestep            0.0001
+
+create_particles    air n 32000
+
+fix                 10 move/surf all 1 2000 rotate 360 0 0 1 0 0 0 engulf project
+fix                 gc grid/check 1 silent outside yes
+
+stats               100
+stats_style         step cpu np ngrid maxlevel nscoll f_10 f_gc
+
+dump                1 particle all 250 dump.amr_3d.*.txt id x y z
+dump_modify         1 format float %20.15g
+
+run                 500
