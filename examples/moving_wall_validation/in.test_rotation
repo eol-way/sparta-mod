@@ -1,0 +1,64 @@
+# velocity distribution of particles diffusely reflected by a rotating cylinder
+#   2d coaxial circles (make_surfs.py): inner R = 0.5 rotates around z at
+#   omega = 2 pi / (1600 * 1e-5) = 392.7 rad/s, wall speed R omega = 196.3 m/s
+#   collisionless gas (no collide command): only gas-surface interaction
+#   the outer cylinder R = 1.0 emits a cold radial beam (1000 m/s, 30 K)
+#     toward the axis and absorbs every particle that comes back (vanish),
+#     so particles moving outward near the inner cylinder were reflected by it
+# expected (checked by verify_distribution.py):
+#   particles in the layer 0.5 < r < 0.55 with v_r > 0 have
+#   v_r ~ half-range Maxwellian at Twall (density weighted, exp(-w^2/c^2)),
+#   v_theta ~ Maxwellian at Twall centered at R omega, v_z ~ zero mean
+# 2d because a 3d tube touching the z faces of the box cannot be rotated:
+#   round-off of the rotation matrix moves its end points out of the box
+# usage: mpirun -np 4 spa_mpi -in in.test_rotation -var model diffuse|vanish \
+#          -var wallvel yes|no
+
+seed                12345
+dimension           2
+global              gridcut 0.1 comm/sort yes
+
+boundary            o o p
+
+create_box          -1.1 1.1 -1.1 1.1 -0.5 0.5
+create_grid         43 43 1        # cell 0.0512: circle vertices off grid lines
+balance_grid        rcb cell
+
+global              nrho 1.0e18 fnum 1.0e14
+
+species             air.species N
+mixture             beam N vstream 1000.0 0.0 0.0 temp 30.0
+
+read_surf           data.ring_inner group inner
+read_surf           data.ring_outer group outer
+
+if                  "${model} == diffuse" then &
+                    "surf_collide 1 diffuse 300.0 1.0" &
+                    else &
+                    "surf_collide 1 vanish"
+surf_collide        2 vanish
+surf_modify         inner collide 1
+surf_modify         outer collide 2
+
+timestep            1.0e-5
+
+# radial beam: speed |vstream| along the inward normal of each outer line
+
+fix                 in emit/surf beam outer normal yes
+
+fix                 10 move/surf inner 1 1600 rotate 360 0 0 1 0 0 0 &
+                    engulf project wallvel ${wallvel}
+
+stats               100
+stats_style         step np nscoll f_10
+
+# beam reaches the inner cylinder after about 50 steps, sample steps 200-600
+
+run                 200
+
+region              near cylinder z 0 0 0.6 INF INF
+dump                1 particle all 10 dump.rotation.${model}_${wallvel}.*.txt &
+                    id x y z vx vy vz
+dump_modify         1 region near format float %20.15g
+
+run                 400

@@ -1,0 +1,60 @@
+# velocity distribution of particles diffusely reflected by a moving piston
+#   3d channel x in [0,3], piston plate at x = 0.2 moving +x at U = 100 m/s
+#   collisionless gas (no collide command): only gas-surface interaction
+#   a cold beam (1000 m/s, 30 K) enters at xhi and flies toward the piston,
+#     so every particle moving away from the piston in its frame was
+#     reflected by it, no incoming particle is mistaken for a reflected one
+#   reflected particles leave the box at xhi (outflow)
+# expected (checked by verify_distribution.py):
+#   particles in the layer x_p < x < x_p + 0.05 with w = vx - U > 0 have
+#   w ~ half-range Maxwellian at Twall (density weighted, exp(-w^2/c^2)),
+#   vy, vz ~ Maxwellian at Twall with zero mean
+# usage: mpirun -np 4 spa_mpi -in in.test_translation -var model diffuse|vanish \
+#          -var wallvel yes|no
+#   model vanish = absorbing piston, control run: no particle should be found
+#                  moving away from it
+
+seed                12345
+dimension           3
+global              gridcut 0.1 comm/sort yes
+
+boundary            o r r
+
+create_box          0 3 0 0.2 0 0.2
+create_grid         60 4 4
+balance_grid        rcb cell
+
+global              nrho 1.0e18 fnum 1.0e12
+
+species             air.species N
+mixture             beam N vstream -1000.0 0.0 0.0 temp 30.0
+
+read_surf           data.piston3d
+
+if                  "${model} == diffuse" then &
+                    "surf_collide 1 diffuse 300.0 1.0" &
+                    else &
+                    "surf_collide 1 vanish"
+surf_modify         all collide 1
+
+timestep            1.0e-5
+
+fix                 in emit/face beam xhi
+
+# piston moves 1.0 in 1000 steps = 100 m/s
+
+fix                 10 move/surf all 1 1000 trans 1.0 0 0 &
+                    engulf project wallvel ${wallvel}
+
+stats               100
+stats_style         step np nscoll f_10
+
+# beam reaches the piston after about 300 steps, sample steps 400-1000
+
+run                 400
+
+dump                1 particle all 10 dump.translation.${model}_${wallvel}.*.txt &
+                    id x vx vy vz
+dump_modify         1 thresh x < 1.3 format float %20.15g
+
+run                 600

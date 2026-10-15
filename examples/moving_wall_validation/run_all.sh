@@ -72,6 +72,12 @@ run log.amr_static.region      -in in.amr_static -var amr region
 run log.amr_dynamic.surf       -in in.amr_dynamic -var adapt surf
 run log.amr_dynamic.particle   -in in.amr_dynamic -var adapt particle
 run log.amr_3d                 -in in.amr_3d
+run log.test_translation.diffuse_yes -in in.test_translation -var model diffuse -var wallvel yes
+run log.test_translation.diffuse_no  -in in.test_translation -var model diffuse -var wallvel no
+run log.test_translation.vanish_yes  -in in.test_translation -var model vanish -var wallvel yes
+run log.test_rotation.diffuse_yes    -in in.test_rotation -var model diffuse -var wallvel yes
+run log.test_rotation.diffuse_no     -in in.test_rotation -var model diffuse -var wallvel no
+run log.test_rotation.vanish_yes     -in in.test_rotation -var model vanish -var wallvel yes
 run log.guard_rotate.no        -in in.guard_rotate -var wallvel no
 run_expect_error log.guard_rotate.yes   -in in.guard_rotate -var wallvel yes
 run_expect_error log.guard_cll_translate -in in.guard_cll_translate
@@ -80,6 +86,14 @@ run_expect_error log.guard_piston       -in in.guard_piston
 echo
 python3 "$HERE/check.py" "$OUT" "$NP"
 status=$?
+
+# velocity distributions of diffusely reflected particles
+# plots need matplotlib, ./.venv is used if it exists
+
+echo
+PY=python3
+[ -x "$HERE/.venv/bin/python" ] && PY=$HERE/.venv/bin/python
+"$PY" "$HERE/verify_distribution.py" "$OUT" "$OUT" || status=1
 
 if [ $nabort -gt 0 ]; then
   echo "$nabort runs aborted"
