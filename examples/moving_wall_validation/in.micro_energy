@@ -1,0 +1,65 @@
+# energy exchange of a cold beam with a diffusely reflecting moving piston
+#   same set-up as in.test_translation: 3d channel x in [0,3], piston plate
+#   at x = 0.2 moving +x at U = 100 m/s, collisionless gas (no collide
+#   command), a cold beam (1000 m/s, 30 K) enters at xhi
+#   compute surf tallies every piston collision with the lab-frame velocities
+#   before and after the bounce, incl. the delayed bounces of particles
+#   pushed out of the piston (engulf project)
+# per collision, gas -> wall (lab frame, summed over all collisions):
+#   momentum  Fx    = sum m (vx - vx')                     compute surf fx
+#   energy    E     = sum 1/2 m (|v|^2 - |v'|^2)           compute surf etot
+#   count     Gamma = number of incident particles         nflux_incident
+#   work      W     = U Fx  (work done by the gas on the moving piston)
+#   heat      Q     = E - W (energy lost by the gas in the piston frame)
+# verify_micro_energy.py compares Fx, E, W, Q per collision with the kernel
+#   theory of a fully diffuse wall at Twall moving at U
+# usage: mpirun -np 4 spa_mpi -in in.micro_energy -var wallvel yes|no
+
+seed                12345
+dimension           3
+global              gridcut 0.1 comm/sort yes
+
+boundary            o r r
+
+create_box          0 3 0 0.2 0 0.2
+create_grid         60 4 4
+balance_grid        rcb cell
+
+global              nrho 1.0e18 fnum 1.0e12
+
+species             air.species N
+mixture             beam N vstream -1000.0 0.0 0.0 temp 30.0
+
+read_surf           data.piston3d
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+timestep            1.0e-5
+
+fix                 in emit/face beam xhi
+
+# piston moves 1.0 in 1000 steps = 100 m/s
+# defined before fix ave/surf, so the delayed bounces of pushed-out
+#   particles (end of step) are in the same step's tally
+
+fix                 10 move/surf all 1 1000 trans 1.0 0 0 &
+                    engulf project wallvel ${wallvel}
+
+# lab-frame tallies of all piston collisions, flows (not per area)
+
+compute             s surf all beam nflux_incident fx etot norm flow
+fix                 as ave/surf all 1 20 20 c_s[*]
+compute             tot reduce sum f_as[1] f_as[2] f_as[3]
+
+stats_style         step np f_10 c_tot[1] c_tot[2] c_tot[3]
+stats_modify        format float %20.15g
+
+# the beam reaches the piston after about 300 steps and its slowest
+#   molecules (4 sigma) after about 450 steps, tally steps 501-1000
+
+stats               100
+run                 500
+
+stats               20
+run                 500

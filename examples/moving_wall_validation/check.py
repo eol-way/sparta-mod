@@ -287,6 +287,19 @@ def check_piston(out, tol=0.03):
            f"p/p0 over steps 1-40 = {r:.4f}, exact {exact:.4f} "
            f"(err {100.0 * (r / exact - 1.0):+.2f}%)")
 
+    # receding at 100 m/s, s < 0: molecules that catch up with the piston,
+    #   particles whose lab velocity points behind the frozen piston after
+    #   a bounce stop at it for the rest of the step (Update::move)
+
+    sr = -s
+    exact_r = ((1.0 + 2.0 * sr * sr) * (1.0 + math.erf(sr)) +
+               2.0 * sr / math.sqrt(math.pi) * math.exp(-sr * sr))
+    r = piston_ratio(os.path.join(out, "log.piston.receding"))
+    status = "PASS" if abs(r / exact_r - 1.0) < tol else "FAIL"
+    report(status, "piston receding wallvel yes",
+           f"p/p0 = {r:.4f}, free-molecular exact {exact_r:.4f} "
+           f"(err {100.0 * (r / exact_r - 1.0):+.2f}%)")
+
     r = piston_ratio(os.path.join(out, "log.piston.project_no"))
     report("INFO", "piston wallvel no",
            f"p/p0 = {r:.4f} (no wall velocity in collisions)")

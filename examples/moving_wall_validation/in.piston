@@ -3,6 +3,7 @@
 #   time-averaged piston pressure vs free-molecular value
 #   p/p0 = (1+2s^2)(1+erf s) + 2s/sqrt(pi) exp(-s^2), s = U/c_mp
 #   valid until molecules reflected by the piston return from x = 10
+#   dx < 0 is a receding piston (s < 0), the same formula holds
 # usage: mpirun -np 4 spa_mpi -in in.piston -var engulf delete|project \
 #          -var wallvel yes|no [-var dx 0.0] [-var nevery N -var nrun M]
 # startup check: -var nevery 20 -var nrun 40 -var fnum 1.0e13 averages the
@@ -39,6 +40,7 @@ create_particles    gas n 0
 
 # piston moves dx in 400 steps, dx = 0.8 is 100 m/s
 # dx = 0.0 is a static wall, calibration of p0 (-var dx 0.0)
+# dx = -0.8 recedes at 100 m/s (-var dx -0.8)
 
 fix                 10 move/surf all ${nevery} 400 trans ${dx} 0 0 &
                     engulf ${engulf} wallvel ${wallvel}

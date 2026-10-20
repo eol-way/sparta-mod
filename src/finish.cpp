@@ -178,6 +178,12 @@ void Finish::end(int flag, double time_multiple_runs)
     MPI_Allreduce(&update->nstuck,&stuck_total,1,MPI_INT,MPI_SUM,world);
     MPI_Allreduce(&update->naxibad,&axibad_total,1,MPI_INT,MPI_SUM,world);
 
+    // [ADDED] Phase 2: particles stopped at frozen moving surfs (wallvel yes)
+
+    bigint wallstop_total;
+    MPI_Allreduce(&update->nwallstop,&wallstop_total,1,
+                  MPI_SPARTA_BIGINT,MPI_SUM,world);
+
     double pms,pmsp,ctps,cis,pfc,pfcwb,pfeb,schps,sclps,srps,caps,cps,rps;
     pms = pmsp = ctps = cis = pfc = pfcwb = pfeb =
       schps = sclps = srps = caps = cps = rps = 0.0;
@@ -229,6 +235,9 @@ void Finish::end(int flag, double time_multiple_runs)
                 nreact_total,MathExtra::num2str(nreact_total,str));
         fprintf(screen,"Particles stuck   = %d\n",stuck_total);
         fprintf(screen,"Axisymm bad moves = %d\n",axibad_total);
+        if (update->wallvelflag)          // [ADDED] Phase 2
+          fprintf(screen,"Wall-frame stops  = " BIGINT_FORMAT " %s\n",
+                  wallstop_total,MathExtra::num2str(wallstop_total,str));
 
         fprintf(screen,"\n");
         fprintf(screen,"Particle-moves/CPUsec/proc: %g\n",pmsp);
@@ -271,6 +280,9 @@ void Finish::end(int flag, double time_multiple_runs)
                 nreact_total,MathExtra::num2str(nreact_total,str));
         fprintf(logfile,"Particles stuck   = %d\n",stuck_total);
         fprintf(logfile,"Axisymm bad moves = %d\n",axibad_total);
+        if (update->wallvelflag)          // [ADDED] Phase 2
+          fprintf(logfile,"Wall-frame stops  = " BIGINT_FORMAT " %s\n",
+                  wallstop_total,MathExtra::num2str(wallstop_total,str));
 
         fprintf(logfile,"\n");
         fprintf(logfile,"Particle-moves/CPUsec/proc: %g\n",pmsp);

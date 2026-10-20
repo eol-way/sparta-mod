@@ -1,0 +1,114 @@
+# long-time energy budget of a gas in a rotating square container
+#   same container as in.rotating_box (side 3.9, diffuse walls at 300 K,
+#   omega = 62.83 rad/s about z through (5,5)), but with gas collisions
+#   (VSS, Kn = lambda/side of about 0.2, transition regime) and the gas
+#   starting at rest at 100 K, far from the wall temperature
+# energy bookkeeping (gas -> walls, lab frame, every wall collision):
+#   E = compute surf etot (energy flow),  T = compute surf tz (torque)
+#   W = omega T   work done by the gas on the rotating walls
+#   Q = E - W     heat lost by the gas in the wall frame
+#   gas energy: Egas = fnum * sum 1/2 m v^2 (monatomic N, no internal modes)
+#   first law for the gas: dEgas/dt = -E = -(W + Q)
+# expected (verify_macro_heating.py):
+#   Egas(t) - Egas(0) = -integral of E over time, to round-off
+#   dLgas/dt + tz = artificial torque (not a wall collision), about 0
+#   T rises from 100 K to Twall = 300 K and stays flat (no drift)
+#   rigid rotation u = omega x r is reached, then W and Q average to zero
+# usage: mpirun -np 4 spa_mpi -in in.macro_heating -var wallvel yes|no \
+#          [-var nrun 50000] [-var nearcp yes|no]
+# about 35 s per run on 4 procs
+
+variable            nrun index 50000
+variable            fnum index 6.0e14
+variable            nhalf equal ${nrun}/2
+
+seed                12345
+dimension           2
+global              gridcut 0.0 comm/sort yes
+
+boundary            r r p
+
+create_box          0 10 0 10 -0.5 0.5
+create_grid         40 40 1
+balance_grid        rcb cell
+
+global              nrho 3.0e18 fnum ${fnum}
+
+species             air.species N
+mixture             gas N vstream 0.0 0.0 0.0 temp 100.0
+
+read_surf           data.square
+
+surf_collide        1 diffuse 300.0 1.0
+surf_modify         all collide 1
+
+collide             vss gas air.vss
+# nearest-neighbor partners (default yes): a DSMC pair at r1, r2 changes
+#   the gas angular momentum by ((r1 - r2) x dp)_z, in rigid rotation this
+#   is a systematic drag (wall work W of about -0.019 W with random pairs
+#   in the 0.25 cells, -0.006 W with nearcp), which would mask an artificial
+#   torque of the moving-wall algorithms
+
+variable            nearcp index yes
+if                  "${nearcp} == yes" then "collide_modify nearcp yes 10"
+
+timestep            0.0001
+
+create_particles    gas n 0
+
+# one revolution per 1000 steps, omega = 62.83 rad/s
+# defined before fix ave/surf, so the delayed bounces of pushed-out
+#   particles (end of step) are in the same step's tally
+
+fix                 10 move/surf all 1 1000 rotate 360 0 0 1 5 5 0 &
+                    engulf project wallvel ${wallvel}
+
+# wall tallies of every step, averaged over 20 steps
+#   1 etot (W), 2 tz (N m), 3 fx, 4 fy (N), 5 nflux_incident (1/s)
+
+compute             s surf all gas etot tz fx fy nflux_incident &
+                    norm flow com 5 5 0
+fix                 as ave/surf all 1 20 20 c_s[*]
+compute             wall reduce sum f_as[1] f_as[2] f_as[3] f_as[4] f_as[5]
+
+# gas kinetic energy of the simulated particles, x fnum = real
+
+compute             ke ke/particle
+compute             ket reduce sum c_ke
+variable            egas equal c_ket*${fnum}
+
+# gas angular momentum about the axis, x fnum = real
+#   dLgas/dt = -tz would hold if every change of Lgas were a wall collision;
+#   the difference shows the angular momentum not conserved elsewhere
+#   (a DSMC pair at r1, r2 exchanges momentum dp, Lz changes by
+#   ((r1 - r2) x dp)_z, and particles pushed out of a wall change r)
+
+variable            lz particle mass*((x-5.0)*vy-(y-5.0)*vx)
+compute             lsum reduce sum v_lz
+variable            lgas equal c_lsum*${fnum}
+
+# thermal temperature (cell COM velocity removed), averaged over the
+#   20 steps before each output, mass weighted over all cells
+
+compute             g grid all gas n u v
+compute             th thermal/grid all gas temp
+fix                 ag ave/grid all 1 20 20 c_g[1] c_th[1]
+variable            nt grid f_ag[1]*f_ag[2]
+compute             tsum reduce sum f_ag[1] v_nt
+variable            tgas equal c_tsum[2]/(c_tsum[1]+1.0e-30)   # 0 at step 0
+
+# cell velocities averaged over the second half, for the rotation check
+
+fix                 au ave/grid all 10 $(v_nhalf/10) ${nrun} c_g[*]
+
+stats               20
+stats_style         step cpu np ncoll nscoll f_10 v_egas v_lgas v_tgas &
+                    c_wall[1] c_wall[2] c_wall[3] c_wall[4] c_wall[5]
+stats_modify        format float %20.15g
+
+run                 ${nrun}
+
+dump                1 grid all ${nrun} grid.macro_heating.${wallvel}.txt &
+                    id xc yc f_au[*]
+dump_modify         1 format float %20.15g
+run                 0

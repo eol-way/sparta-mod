@@ -78,6 +78,12 @@ class Update : protected Pointers {
                              // in this case, bad means particle ended up
                              // outside of final cell curved surf by epsilon
                              // when move logic thinks it is inside cell
+  bigint nwallstop;          // [ADDED] Phase 2: # of particles stopped at a
+                             //   frozen moving surf, lab velocity pointing
+                             //   behind it after a wall-frame collision
+  int wallvelflag;           // [ADDED] Phase 2: 1 if surf collisions with
+                             //   moving surfs use the wall velocity
+                             //   [MODIFIED] public, Finish reports nwallstop
 
   int reorder_period;        // # of timesteps between particle reordering
   int global_mem_limit;      // max # of bytes in arrays for rebalance and reordering
@@ -121,8 +127,6 @@ class Update : protected Pointers {
   class RanKnuth *random;     // RNG for particle timestep moves
 
   int collide_react;         // 1 if any SurfCollide or React classes defined
-  int wallvelflag;           // [ADDED] Phase 2: 1 if surf collisions with
-                             //   moving surfs use the wall velocity
   int nsc,nsr;               // copy of Collide/React data in Surf class
   class SurfCollide **sc;
   class SurfReact **sr;

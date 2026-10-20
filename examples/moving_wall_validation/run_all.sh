@@ -64,6 +64,7 @@ run log.piston.project_no      -in in.piston -var engulf project -var wallvel no
 run log.piston.delete_no       -in in.piston -var engulf delete -var wallvel no
 run log.piston.startup         -in in.piston -var engulf project -var wallvel yes \
                                -var nevery 20 -var nrun 40 -var fnum 5.0e12
+run log.piston.receding        -in in.piston -var engulf project -var wallvel yes -var dx -0.8
 run log.rotating_box.project_yes -in in.rotating_box -var engulf project -var wallvel yes
 run log.rotating_box.project_no  -in in.rotating_box -var engulf project -var wallvel no
 run log.amr_static.none        -in in.amr_static -var amr none
@@ -78,6 +79,8 @@ run log.test_translation.vanish_yes  -in in.test_translation -var model vanish -
 run log.test_rotation.diffuse_yes    -in in.test_rotation -var model diffuse -var wallvel yes
 run log.test_rotation.diffuse_no     -in in.test_rotation -var model diffuse -var wallvel no
 run log.test_rotation.vanish_yes     -in in.test_rotation -var model vanish -var wallvel yes
+run log.micro_energy.yes       -in in.micro_energy -var wallvel yes
+run log.micro_energy.no        -in in.micro_energy -var wallvel no
 run log.guard_rotate.no        -in in.guard_rotate -var wallvel no
 run_expect_error log.guard_rotate.yes   -in in.guard_rotate -var wallvel yes
 run_expect_error log.guard_cll_translate -in in.guard_cll_translate
@@ -94,6 +97,11 @@ echo
 PY=python3
 [ -x "$HERE/.venv/bin/python" ] && PY=$HERE/.venv/bin/python
 "$PY" "$HERE/verify_distribution.py" "$OUT" "$OUT" || status=1
+
+# momentum, energy, work and heat per collision with the moving piston
+
+echo
+python3 "$HERE/verify_micro_energy.py" "$OUT" || status=1
 
 if [ $nabort -gt 0 ]; then
   echo "$nabort runs aborted"

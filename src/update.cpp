@@ -54,6 +54,11 @@ enum{NOFIELD,CFIELD,PFIELD,GFIELD};             // several files
 #define MAXSTUCK 20
 #define EPSPARAM 1.0e-7
 
+// [ADDED] Phase 2: offset of a particle stopped at a frozen moving surf,
+//   toward the gas side, as fraction of the cell size (same as MoveSurf)
+
+#define EPSWALLSTOP 1.0e-6
+
 // either set ID or PROC/INDEX, set other to -1
 
 //#define MOVE_DEBUG 1              // un-comment to debug one particle
@@ -257,6 +262,7 @@ void Update::setup()
   nscheck_running = nscollide_running = 0;
   surf->nreact_running = 0;
   nstuck = naxibad = 0;
+  nwallstop = 0;                       // [ADDED] Phase 2
 
   collide_react = collide_react_setup();
   bounce_tally = bounce_setup();
@@ -361,6 +367,33 @@ void Update::run(int nsteps)
 }
 
 /* ----------------------------------------------------------------------
+   [ADDED] Phase 2: 凍結した移動表面の手前で止める粒子の位置
+   x = collision point on a surf with unit normal norm (pointing to gas)
+   offset x by EPSWALLSTOP x smallest side of the cell [lo,hi] along norm,
+     so a later move starts on the gas side, not exactly on the surf
+     (a particle starting on a surf and moving into it is not a collision)
+   no offset if the offset point would leave the cell
+   dim = 3 for 3d, else 2 coords (2d, axisymmetric)
+------------------------------------------------------------------------- */
+
+static void wall_stop_offset(int dim, double *x, double *norm,
+                             double *lo, double *hi)
+{
+  double size = hi[0] - lo[0];
+  if (hi[1]-lo[1] < size) size = hi[1] - lo[1];
+  if (dim == 3 && hi[2]-lo[2] < size) size = hi[2] - lo[2];
+  double eps = EPSWALLSTOP*size;
+
+  int n = (dim == 3) ? 3 : 2;
+  double xoff[3];
+  for (int k = 0; k < n; k++) {
+    xoff[k] = x[k] + eps*norm[k];
+    if (xoff[k] < lo[k] || xoff[k] >= hi[k]) return;
+  }
+  for (int k = 0; k < n; k++) x[k] = xoff[k];
+}
+
+/* ----------------------------------------------------------------------
    advect particles thru grid
    DIM = 2/3 for 2d/3d, 1 for 2d axisymmetric
    SURF = 0/1 for no surfs or surfs
@@ -389,6 +422,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
   int wallframe;                       // [ADDED] Phase 2
   double uw[3];                        // [ADDED] Phase 2: wall velocity
   double *snorm;                       // [ADDED] Phase 2
+  int wallstop;                        // [ADDED] Phase 2
 
   if (OPT) {
     boxlo = domain->boxlo;
@@ -930,7 +964,7 @@ template < int DIM, int SURF, int OPT > void Update::move()
               // wallframe = 2: particle does not approach the wall in its
               //   frame, so the hit surf is the stale position of a
               //   receding wall, no collision, particle keeps its velocity
-              //   and continues thru the surf (excluded below)
+              //   and stops at the surf for the rest of the step (below)
               // iorig stays in lab frame for surf tallies
 
               wallframe = 0;
@@ -993,6 +1027,35 @@ template < int DIM, int SURF, int OPT > void Update::move()
                   slist_active[m]->surf_tally(minsurf,icell,reaction,
                                               &iorig,ipart,jpart);
 
+              // [ADDED] Phase 2: 凍結した壁の裏へ向かう粒子は衝突点で止める
+              // a receding surf can leave the lab velocity pointing behind
+              //   the frozen surf: after a wall-frame bounce v'.n < 0 when
+              //   u_w.n < -w'.n, and always on a pass-through (wallframe = 2)
+              // the rest of the move would be inside the solid of the grid
+              //   cut used until fix move/surf moves the surf at the end of
+              //   the step, so gas collisions in between would see particles
+              //   in solid cells (zero volume)
+              // such a particle stays at the collision point for the rest of
+              //   the step, offset to the gas side by EPSWALLSTOP x cell size
+              //   so it starts outside the surf if the surf does not move,
+              //   velocity unchanged, so energy and tallies are unchanged;
+              //   the receding surf leaves it on the gas side when it moves
+              // a particle created by the collision (jpart) is stopped too
+
+              wallstop = 0;
+              if (wallframe) {
+                if (ipart && MathExtra::dot3(v,snorm) < 0.0) {
+                  wall_stop_offset(DIM,x,snorm,lo,hi);
+                  wallstop = 1;
+                  nwallstop++;
+                }
+                if (jpart && MathExtra::dot3(jpart->v,snorm) < 0.0) {
+                  wall_stop_offset(DIM,jpart->x,snorm,lo,hi);
+                  jpart->dtremain = 0.0;
+                  nwallstop++;
+                }
+              }
+
               // stuck_iterate = consecutive iterations particle is immobile
 
               if (minparam == 0.0) stuck_iterate++;
@@ -1043,8 +1106,14 @@ template < int DIM, int SURF, int OPT > void Update::move()
               // else if particle not stuck, continue advection while loop
               // if stuck, mark for DISCARD, and drop out of SURF code
 
+              // [MODIFIED] Phase 2: a stopped particle ends its move here,
+              //   like a move ending inside the cell (see INTERIOR below)
+
               if (ipart == NULL) particles[i].flag = PDISCARD;
-              else if (stuck_iterate < MAXSTUCK) continue;
+              else if (wallstop) {
+                if (cells[icell].proc != me) particles[i].flag = PDONE;
+                break;
+              } else if (stuck_iterate < MAXSTUCK) continue;
               else {
                 particles[i].flag = PDISCARD;
                 nstuck++;
